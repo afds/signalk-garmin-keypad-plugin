@@ -1,0 +1,192 @@
+/* GNX Keypad — dark theme matching the physical device */
+
+.keypad-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #d0d0d0;
+}
+
+.keypad-body {
+  width: 260px;
+  background: #1a1a1a;
+  border-radius: 20px;
+  padding: 20px 16px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.keypad-loading {
+  color: #888;
+  padding: 40px;
+  text-align: center;
+}
+
+/* Status bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #888;
+  padding: 0 4px;
+  min-height: 20px;
+}
+
+.status-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.feedback {
+  color: #82b1ff;
+  font-size: 11px;
+  animation: fadeIn 0.15s ease;
+}
+
+.error {
+  color: #ff5252;
+  font-size: 11px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Generic button */
+.keypad-btn {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  color: #d0d0d0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.keypad-btn:hover {
+  background: #333;
+  border-color: #4a4a4a;
+}
+
+.keypad-btn:active {
+  background: #222;
+  transform: scale(0.96);
+}
+
+/* Power row */
+.power-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 10px;
+  margin-bottom: 32px;
+}
+
+.power-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2a2a2a;
+}
+
+.power-btn:hover {
+  background: #383838;
+}
+
+/* Preset grid */
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 10px;
+  margin-bottom: 32px;
+}
+
+.preset-btn {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 80px;
+  max-height: 80px;
+  margin: 0 auto;
+}
+
+.preset-btn.long-press {
+  background: #7a5c00 !important;
+  border-color: #b8860b !important;
+  color: #ffd54f !important;
+  box-shadow: 0 0 12px rgba(255, 193, 7, 0.3);
+}
+
+/* Control rows (display selector, page nav, backlight) */
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+/* Arrow buttons */
+.arrow-btn {
+  width: 62px;
+  height: 53px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Center icon in control rows */
+.row-icon {
+  width: 62px;
+  height: 53px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
+
+/* Backlight buttons */
+.backlight-row {
+  gap: 6px;
+  margin-top: 32px;
+}
+
+.backlight-btn {
+  flex: 1;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.backlight-btn.active {
+  background: #1a3a5c;
+  border-color: #2962ff;
+  color: #82b1ff;
+}
+
