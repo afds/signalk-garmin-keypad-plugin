@@ -5,10 +5,14 @@ const pluginFactory = require('../dist/').default
 function createMockApp() {
   const app = new EventEmitter()
   app.emitted = []
+  app.emittedRaw = []
   const origEmit = app.emit.bind(app)
   app.emit = function (event, ...args) {
     if (event === 'nmea2000JsonOut') {
       app.emitted.push(args[0])
+    }
+    if (event === 'nmea2000out') {
+      app.emittedRaw.push(args[0])
     }
     return origEmit(event, ...args)
   }
@@ -218,11 +222,12 @@ describe('REST API endpoints', () => {
   })
 
   describe('POST /backlight', () => {
-    it('emits backlight intensity command', () => {
+    it('emits backlight intensity command via raw actisense', () => {
       const res = createMockRes()
       router._routes.post['/backlight'](createMockReq('POST', { level: 1 }), res)
       expect(res.body).to.deep.equal({ ok: true })
-      expect(app.emitted).to.have.length(1)
+      expect(app.emittedRaw).to.have.length(1)
+      expect(app.emittedRaw[0]).to.include('126720')
     })
 
     it('updates backlight state', () => {

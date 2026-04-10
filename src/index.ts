@@ -9,6 +9,7 @@ import {
   INTENSITY_0,
   PROP_DISP_CNT,
   PROP_DISPLAY,
+  PROP_INTENSITY,
   parseGroupId
 } from './protocol'
 import {
@@ -67,9 +68,11 @@ export default function (app: any) {
   let diagListener: ((msg: any) => void) | null = null
   let handshakeResponseListener: ((msg: any) => void) | null = null
   let rawSendListener: ((msg: any) => void) | null = null
+  let rawInputListener: ((msg: any) => void) | null = null
   let handshakeTimers: ReturnType<typeof setTimeout>[] = []
   const displayAddresses = new Set<number>()
   const handshakeRespondedTo = new Set<number>()
+  const nackCounts = new Map<string, number>()
 
   function src(): number {
     return options.sourceAddress ?? DEFAULT_SRC
@@ -200,13 +203,20 @@ export default function (app: any) {
       }
 
       // Log all incoming Garmin N2K messages for diagnostics
+      let dumpedRawOnce = false
       const diagHandler = (msg: any) => {
         const mfr = msg.fields?.['Manufacturer Code']
         if ((msg.pgn === PGN_FAST || msg.pgn === PGN_SINGLE) && (mfr === 229 || mfr === 'Garmin')) {
+          const cmd = msg.fields?.['Command']
           debug('N2K IN pgn=%d src=%d dst=%d cmd=0x%s fields=%j',
             msg.pgn, msg.src, msg.dst,
-            (msg.fields?.['Command'] ?? 0).toString(16),
+            (cmd ?? 0).toString(16),
             msg.fields)
+          if (!dumpedRawOnce && msg.pgn === PGN_FAST && cmd === 0xe5) {
+            dumpedRawOnce = true
+            const keys = Object.keys(msg).filter(k => k !== 'fields')
+            debug('N2K raw msg keys: %j values: %j', keys, keys.reduce((o: any, k: string) => { o[k] = msg[k]; return o }, {}))
+          }
         }
       }
       app.on('N2KAnalyzerOut', diagHandler)
@@ -219,6 +229,58 @@ export default function (app: any) {
       }
       app.on('canboatjs:rawsend', rawSendHandler)
       rawSendListener = rawSendHandler
+
+      // Listen for raw incoming actisense data BEFORE canboatjs parses (and truncates) it.
+      // This lets us read the full trailing bytes (fingerprint + counter) from intensity
+      // NACKs that exceed the PGN definition's BitLength of 344 (43 bytes).
+      const rawInputHandler = (msg: any) => {
+        if (typeof msg !== 'string') return
+        const parts = msg.split(',')
+        if (parts.length < 9) return
+        const pgn = parseInt(parts[2])
+        if (pgn !== PGN_FAST) return
+        const msgSrc = parseInt(parts[3])
+        if (!displayAddresses.has(msgSrc)) return
+        // Check for property command: bytes [6],[7] = e5,98 (garmin header), [8] = e5 (cmd)
+        if (parts[6] !== 'e5' || parts[8] !== 'e5') return
+        const len = parseInt(parts[5])
+        if (len < 40) return
+        // Parse data bytes into a buffer
+        const dataBytes = parts.slice(6).map(h => parseInt(h, 16))
+        const payload = Buffer.from(dataBytes.slice(3)) // skip e5,98,e5 header
+        if (payload.length < 20) return
+        const strLen = payload[13]
+        if (payload.length < 14 + strLen) return
+        const propName = payload.toString('ascii', 14, 14 + strLen - 1)
+        const valueOffset = 14 + strLen + 3
+        if (valueOffset >= payload.length) return
+        const value = payload[valueOffset]
+        // Full trailing bytes (7 bytes after value)
+        const trailingStart = valueOffset + 1
+        if (payload.length >= trailingStart + 7) {
+          const t0 = payload[trailingStart]
+          const t1 = payload[trailingStart + 1]
+          const t2 = payload[trailingStart + 2]
+          const t3 = payload[trailingStart + 3]
+          const t4 = payload[trailingStart + 4]
+          const t5 = payload[trailingStart + 5]
+          const t6 = payload[trailingStart + 6]
+          const storedSeq = decodeCounter(t5, t6)
+          debug('RAW NACK %s src=%d val=%d fingerprint=%s counter=%d trailing=[%s]',
+            propName, msgSrc, value,
+            t3.toString(16).padStart(2, '0') + t4.toString(16).padStart(2, '0'),
+            storedSeq,
+            [t0, t1, t2, t3, t4, t5, t6].map(b => b.toString(16).padStart(2, '0')).join(' '))
+          // Auto-adjust counter from the full (untruncated) NACK data
+          ensureCounterAbove(propName, storedSeq)
+          nackCounts.delete(propName)
+        } else {
+          debug('RAW NACK %s src=%d val=%d len=%d (still truncated)',
+            propName, msgSrc, value, payload.length)
+        }
+      }
+      app.on('canboatjs:rawoutput', rawInputHandler)
+      rawInputListener = rawInputHandler
 
       // Auto-discover group ID and display addresses from incoming heartbeats.
       const discoveryHandler = (msg: any) => {
@@ -277,7 +339,19 @@ export default function (app: any) {
           const t5 = payload[payload.length - 2]
           const t6 = payload[payload.length - 1]
           const storedSeq = decodeCounter(t5, t6)
+          debug('Counter discovery: %s src=%d stored=%d t5=0x%s t6=0x%s',
+            propName, msg.src, storedSeq, t5.toString(16), t6.toString(16))
           ensureCounterAbove(propName, storedSeq)
+          nackCounts.delete(propName)
+        } else {
+          // Payload truncated (long property name exceeds PGN BitLength).
+          // Bump counter progressively on each NACK until we exceed stored value.
+          const nacks = (nackCounts.get(propName) ?? 0) + 1
+          nackCounts.set(propName, nacks)
+          const bumpTo = Math.min(500 + nacks * 500, 2040)
+          debug('Counter discovery truncated: %s nack=%d bumping to %d (payloadLen=%d need=%d)',
+            propName, nacks, bumpTo, payload.length, valueOffset + 1 + 7)
+          ensureCounterAbove(propName, bumpTo)
         }
 
         if (propName === PROP_DISP_CNT && value > 0 && displayCount === 0) {
@@ -428,6 +502,10 @@ export default function (app: any) {
         app.removeListener('canboatjs:rawsend', rawSendListener)
         rawSendListener = null
       }
+      if (rawInputListener) {
+        app.removeListener('canboatjs:rawoutput', rawInputListener)
+        rawInputListener = null
+      }
       handshakeRespondedTo.clear()
       n2kReady = false
       handshakeComplete = false
@@ -547,7 +625,10 @@ export default function (app: any) {
         if (typeof level !== 'number' || level < 0 || level > 2) {
           return res.status(400).json({ error: 'level must be 0, 1, or 2' })
         }
-        emit(buildIntensity(level, src()))
+        // Use raw actisense to bypass canboatjs toPgn — ensures prio=7 matches
+        // real keypad and avoids any encoding issues with the longer payload.
+        const actisense = buildRawPropertyActisense(PROP_INTENSITY, level, src())
+        emitRawActisense(actisense)
         backlightLevel = level
         res.json({ ok: true })
       })
