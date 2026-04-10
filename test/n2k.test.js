@@ -6,7 +6,10 @@ const {
   buildSleepWake,
   buildIntensity,
   buildDisplaySelect,
-  buildHeartbeat
+  buildHeartbeat,
+  buildDeviceIdent,
+  buildDeviceHandshake,
+  resetCounters
 } = require('../dist/n2k')
 
 describe('PGN 61184 button event builders', () => {
@@ -167,6 +170,83 @@ describe('PGN 126720 property command builders', () => {
       expect(payload[0]).to.equal(0x08)
       // Last byte is direction=request
       expect(payload[13]).to.equal(0x00)
+    })
+  })
+
+  describe('buildDeviceIdent', () => {
+    it('returns PGN 126720 with command 0xf5', () => {
+      const pgn = buildDeviceIdent()
+      expect(pgn.pgn).to.equal(126720)
+      expect(pgn['Command']).to.equal(0xf5)
+      expect(pgn['Manufacturer Code']).to.equal(229)
+    })
+
+    it('payload is 47 bytes (50 total minus 3 canboatjs header bytes)', () => {
+      const pgn = buildDeviceIdent()
+      const payload = pgn['Payload']
+      expect(payload).to.be.instanceOf(Buffer)
+      expect(payload.length).to.equal(47)
+    })
+
+    it('payload contains "GNX Keypad" product name at offset 3', () => {
+      const pgn = buildDeviceIdent()
+      const payload = pgn['Payload']
+      const name = payload.toString('ascii', 3, 3 + 10)
+      expect(name).to.equal('GNX Keypad')
+    })
+
+    it('uses provided source address', () => {
+      expect(buildDeviceIdent(42).src).to.equal(42)
+    })
+  })
+
+  describe('buildDeviceHandshake', () => {
+    it('returns PGN 61184 with command 0x0a', () => {
+      const pgn = buildDeviceHandshake()
+      expect(pgn.pgn).to.equal(61184)
+      expect(pgn['Command']).to.equal(0x0a)
+      expect(pgn['Manufacturer Code']).to.equal(229)
+    })
+
+    it('has correct fixed handshake payload', () => {
+      const pgn = buildDeviceHandshake()
+      expect(pgn['Unknown 1']).to.equal(0x00)
+      expect(pgn['Unknown 2']).to.equal(0x02)
+      expect(pgn['Unknown 3']).to.equal(0x02)
+      expect(pgn['Unknown 4']).to.equal(0xa4)
+      expect(pgn['Unknown 5']).to.equal(0x00)
+    })
+
+    it('uses provided source address', () => {
+      expect(buildDeviceHandshake(7).src).to.equal(7)
+    })
+  })
+
+  describe('per-property counters', () => {
+    beforeEach(() => {
+      resetCounters()
+    })
+
+    it('different properties get independent counters', () => {
+      const sleep1 = buildSleepWake(true)
+      const disp1 = buildDisplaySelect(0)
+      const sleep2 = buildSleepWake(false)
+
+      // Trailing bytes are last 7 bytes of each payload
+      const sleepPayload1 = sleep1['Payload']
+      const dispPayload = disp1['Payload']
+      const sleepPayload2 = sleep2['Payload']
+
+      // Counters start at COUNTER_OFFSET (500) + 1 = 501
+      // Sleep seq=501 → T5=0x8e + (501 & 7)*0x10 = 0xde, seq=502 → 0xee
+      const sleepT5_1 = sleepPayload1[sleepPayload1.length - 2]
+      const sleepT5_2 = sleepPayload2[sleepPayload2.length - 2]
+      expect(sleepT5_1).to.equal(0xde) // seq=501
+      expect(sleepT5_2).to.equal(0xee) // seq=502
+
+      // Display counter: seq=501 → T5=0xde (independent from sleep)
+      const dispT5 = dispPayload[dispPayload.length - 2]
+      expect(dispT5).to.equal(0xde) // seq=501
     })
   })
 })

@@ -43,7 +43,8 @@
 
 .status-label {
   flex: 1;
-  font-weight: 500;
+  font-weight: 700;
+  font-size: 15px;
 }
 
 .feedback {
@@ -91,7 +92,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 0 10px;
+  padding: 0 25px;
   margin-bottom: 32px;
 }
 
@@ -188,5 +189,25 @@
   background: #1a3a5c;
   border-color: #2962ff;
   color: #82b1ff;
+}
+
+/* Display index indicator */
+.display-indicator {
+  font-size: 16px;
+  font-weight: 600;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Handshake connecting status */
+.status-connecting {
+  color: #ffc107;
+  font-size: 11px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 

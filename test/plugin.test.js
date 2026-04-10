@@ -180,7 +180,8 @@ describe('REST API endpoints', () => {
     it('emits PGN 126720 display select command', () => {
       const res = createMockRes()
       router._routes.post['/display/select'](createMockReq('POST', { index: 1 }), res)
-      expect(res.body).to.deep.equal({ ok: true })
+      expect(res.body.ok).to.equal(true)
+      expect(res.body.displayIndex).to.equal(1)
       expect(app.emitted).to.have.length(1)
 
       const pgn = app.emitted[0]
@@ -237,6 +238,59 @@ describe('REST API endpoints', () => {
       const res = createMockRes()
       router._routes.post['/backlight'](createMockReq('POST', { level: 5 }), res)
       expect(res.statusCode).to.equal(400)
+    })
+  })
+
+  describe('GET /state (extended fields)', () => {
+    it('includes displayCount, activeDisplay, and handshakeComplete', () => {
+      const stateRes = createMockRes()
+      router._routes.get['/state']({}, stateRes)
+      expect(stateRes.body).to.have.property('displayCount')
+      expect(stateRes.body).to.have.property('activeDisplay')
+      expect(stateRes.body).to.have.property('handshakeComplete')
+      expect(stateRes.body.displayCount).to.be.a('number')
+      expect(stateRes.body.activeDisplay).to.be.a('number')
+      expect(stateRes.body.handshakeComplete).to.be.a('boolean')
+    })
+  })
+
+  describe('POST /display/cycle', () => {
+    it('cycles down (increments display index)', () => {
+      // First select display 0
+      const selectRes = createMockRes()
+      router._routes.post['/display/select'](createMockReq('POST', { index: 0 }), selectRes)
+      app.emitted = []
+
+      const res = createMockRes()
+      router._routes.post['/display/cycle'](createMockReq('POST', { direction: 'down' }), res)
+      expect(res.body.ok).to.equal(true)
+      expect(res.body.displayIndex).to.equal(1)
+    })
+
+    it('cycles up (decrements, clamped to 0 without displayCount)', () => {
+      // Start at display 0
+      const selectRes = createMockRes()
+      router._routes.post['/display/select'](createMockReq('POST', { index: 0 }), selectRes)
+      app.emitted = []
+
+      const res = createMockRes()
+      router._routes.post['/display/cycle'](createMockReq('POST', { direction: 'up' }), res)
+      expect(res.body.ok).to.equal(true)
+      expect(res.body.displayIndex).to.equal(0) // clamped at 0
+    })
+
+    it('returns 400 for invalid direction', () => {
+      const res = createMockRes()
+      router._routes.post['/display/cycle'](createMockReq('POST', { direction: 'left' }), res)
+      expect(res.statusCode).to.equal(400)
+    })
+  })
+
+  describe('POST /display/select (wrap-around)', () => {
+    it('wraps negative index to 0 without displayCount', () => {
+      const res = createMockRes()
+      router._routes.post['/display/select'](createMockReq('POST', { index: -1 }), res)
+      expect(res.body.displayIndex).to.equal(0)
     })
   })
 })

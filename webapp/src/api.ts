@@ -4,6 +4,9 @@ export interface KeypadState {
   backlight: number
   sleeping: boolean
   n2kReady: boolean
+  displayCount: number
+  activeDisplay: number
+  handshakeComplete: boolean
 }
 
 async function post(path: string, body: Record<string, unknown>): Promise<void> {
@@ -38,6 +41,20 @@ export async function pageNavigate(direction: 'next' | 'previous'): Promise<void
 
 export async function selectDisplay(index: number): Promise<void> {
   await post('/display/select', { index })
+}
+
+export async function cycleDisplay(direction: 'up' | 'down'): Promise<{ ok: boolean, displayIndex: number }> {
+  const res = await fetch(`${API_BASE}/display/cycle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ direction })
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || 'Request failed')
+  }
+  return res.json()
 }
 
 export async function power(action: 'sleep' | 'wake'): Promise<void> {

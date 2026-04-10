@@ -4,7 +4,7 @@ import {
   selectPreset,
   savePreset,
   pageNavigate,
-  selectDisplay,
+  cycleDisplay,
   power,
   setBacklight,
   KeypadState
@@ -186,14 +186,11 @@ export function Keypad() {
     }
   }
 
-  const [displayIndex, setDisplayIndex] = useState(0)
-
-  const handleDisplayNav = async (delta: number) => {
-    const next = Math.max(0, displayIndex + delta)
+  const handleDisplayNav = async (direction: 'up' | 'down') => {
     try {
-      await selectDisplay(next)
-      setDisplayIndex(next)
-      showFeedback(`Display ${next}`)
+      const result = await cycleDisplay(direction)
+      setState(prev => prev ? { ...prev, activeDisplay: result.displayIndex } : prev)
+      showFeedback(`Display ${result.displayIndex + 1}`)
     } catch (err) {
       handleError(err)
     }
@@ -227,10 +224,9 @@ export function Keypad() {
     }
   }
 
-  const powerHandlers = useLongPress(
-    () => handlePower('wake'),
-    () => handlePower('sleep')
-  )
+  const handlePowerToggle = () => {
+    handlePower(state?.sleeping ? 'wake' : 'sleep')
+  }
 
   if (!state) {
     return <div className="keypad-container"><div className="keypad-loading">Loading...</div></div>
@@ -242,13 +238,14 @@ export function Keypad() {
         {/* Status bar */}
         <div className="status-bar">
           <span className="status-label">GNX Keypad</span>
+          {!state.handshakeComplete && <span className="status-connecting">Connecting...</span>}
           {feedback && <span className="feedback">{feedback}</span>}
           {error && <span className="error">{error}</span>}
         </div>
 
         {/* Power button */}
         <div className="power-row">
-          <button className="keypad-btn power-btn" {...powerHandlers}>
+          <button className="keypad-btn power-btn" onClick={handlePowerToggle}>
             <svg viewBox="0 0 24 24" width="20" height="20">
               <line x1="12" y1="3" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               <path
@@ -276,18 +273,19 @@ export function Keypad() {
 
         {/* Display navigation */}
         <div className="control-row display-row">
-          <button className="keypad-btn arrow-btn" onClick={() => handleDisplayNav(-1)}>
+          <button className="keypad-btn arrow-btn" onClick={() => handleDisplayNav('up')}>
             <svg viewBox="0 0 24 24" width="25" height="25">
               <path d="M12 8l-6 6h12z" fill="currentColor" />
             </svg>
           </button>
           <div className="row-icon">
             <svg viewBox="0 0 24 24" width="28" height="28">
-              <rect x="3" y="4" width="18" height="13" rx="1" fill="none" stroke="currentColor" strokeWidth="2" />
-              <line x1="8" y1="20" x2="16" y2="20" stroke="currentColor" strokeWidth="2" />
+              <rect x="2" y="3" width="20" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+              <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" strokeWidth="2" />
             </svg>
           </div>
-          <button className="keypad-btn arrow-btn" onClick={() => handleDisplayNav(1)}>
+          <button className="keypad-btn arrow-btn" onClick={() => handleDisplayNav('down')}>
             <svg viewBox="0 0 24 24" width="25" height="25">
               <path d="M12 16l6-6H6z" fill="currentColor" />
             </svg>

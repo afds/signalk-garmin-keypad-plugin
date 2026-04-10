@@ -317,6 +317,308 @@ module.exports = {
     },
 
     // =========================================================
+    // PGN 61184 — Device Selected Acknowledgement
+    // (sent BY the display, not the keypad — receive-only)
+    // =========================================================
+    {
+      PGN: 61184,
+      Id: 'garminGnxDisplaySelectedAck',
+      Description: 'Garmin GNX Display Selected Ack',
+      Type: 'Single',
+      Complete: true,
+      Length: 6,
+      Fields: [
+        {
+          Order: 1,
+          Id: 'manufacturerCode',
+          Name: 'Manufacturer Code',
+          BitLength: 11,
+          BitOffset: 0,
+          BitStart: 0,
+          Match: 229,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'MANUFACTURER_CODE',
+          Signed: false
+        },
+        {
+          Order: 2,
+          Id: 'reserved',
+          Name: 'Reserved',
+          BitLength: 2,
+          BitOffset: 11,
+          BitStart: 3,
+          FieldType: 'RESERVED'
+        },
+        {
+          Order: 3,
+          Id: 'industryCode',
+          Name: 'Industry Code',
+          BitLength: 3,
+          BitOffset: 13,
+          BitStart: 5,
+          Match: 4,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'INDUSTRY_CODE',
+          Signed: false
+        },
+        {
+          Order: 4,
+          Id: 'command',
+          Name: 'Command',
+          BitLength: 8,
+          BitOffset: 16,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false,
+          Match: 0x48
+        },
+        {
+          Order: 5,
+          Id: 'productId',
+          Name: 'Product ID',
+          BitLength: 8,
+          BitOffset: 24,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 6,
+          Id: 'unknown1',
+          Name: 'Unknown 1',
+          BitLength: 8,
+          BitOffset: 32,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 7,
+          Id: 'unknown2',
+          Name: 'Unknown 2',
+          BitLength: 8,
+          BitOffset: 40,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        }
+      ]
+    },
+
+    // =========================================================
+    // PGN 61184 — Device Handshake (startup discovery)
+    // Exchanged between all devices (keypad↔displays, display↔display)
+    // =========================================================
+    {
+      PGN: 61184,
+      Id: 'garminGnxDeviceHandshake',
+      Description: 'Garmin GNX Device Handshake',
+      Type: 'Single',
+      Complete: true,
+      Length: 8,
+      Fields: [
+        {
+          Order: 1,
+          Id: 'manufacturerCode',
+          Name: 'Manufacturer Code',
+          BitLength: 11,
+          BitOffset: 0,
+          BitStart: 0,
+          Match: 229,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'MANUFACTURER_CODE',
+          Signed: false
+        },
+        {
+          Order: 2,
+          Id: 'reserved',
+          Name: 'Reserved',
+          BitLength: 2,
+          BitOffset: 11,
+          BitStart: 3,
+          FieldType: 'RESERVED'
+        },
+        {
+          Order: 3,
+          Id: 'industryCode',
+          Name: 'Industry Code',
+          BitLength: 3,
+          BitOffset: 13,
+          BitStart: 5,
+          Match: 4,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'INDUSTRY_CODE',
+          Signed: false
+        },
+        {
+          Order: 4,
+          Id: 'command',
+          Name: 'Command',
+          BitLength: 8,
+          BitOffset: 16,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false,
+          Match: 0x0a
+        },
+        {
+          Order: 5,
+          Id: 'unknown1',
+          Name: 'Unknown 1',
+          BitLength: 8,
+          BitOffset: 24,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 6,
+          Id: 'unknown2',
+          Name: 'Unknown 2',
+          BitLength: 8,
+          BitOffset: 32,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 7,
+          Id: 'unknown3',
+          Name: 'Unknown 3',
+          BitLength: 8,
+          BitOffset: 40,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 8,
+          Id: 'unknown4',
+          Name: 'Unknown 4',
+          BitLength: 8,
+          BitOffset: 48,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 9,
+          Id: 'unknown5',
+          Name: 'Unknown 5',
+          BitLength: 8,
+          BitOffset: 56,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        }
+      ]
+    },
+
+    // =========================================================
+    // PGN 61184 — Discovery Probe (startup device discovery)
+    // Displays send this to probe other devices on the bus.
+    // Added for diagnostic visibility — not sent by keypads.
+    // =========================================================
+    {
+      PGN: 61184,
+      Id: 'garminGnxDiscoveryProbe',
+      Description: 'Garmin GNX Discovery Probe',
+      Type: 'Single',
+      Complete: true,
+      Length: 6,
+      Fields: [
+        {
+          Order: 1,
+          Id: 'manufacturerCode',
+          Name: 'Manufacturer Code',
+          BitLength: 11,
+          BitOffset: 0,
+          BitStart: 0,
+          Match: 229,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'MANUFACTURER_CODE',
+          Signed: false
+        },
+        {
+          Order: 2,
+          Id: 'reserved',
+          Name: 'Reserved',
+          BitLength: 2,
+          BitOffset: 11,
+          BitStart: 3,
+          FieldType: 'RESERVED'
+        },
+        {
+          Order: 3,
+          Id: 'industryCode',
+          Name: 'Industry Code',
+          BitLength: 3,
+          BitOffset: 13,
+          BitStart: 5,
+          Match: 4,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'INDUSTRY_CODE',
+          Signed: false
+        },
+        {
+          Order: 4,
+          Id: 'command',
+          Name: 'Command',
+          BitLength: 8,
+          BitOffset: 16,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false,
+          Match: 0xed
+        },
+        {
+          Order: 5,
+          Id: 'unknown1',
+          Name: 'Unknown 1',
+          BitLength: 8,
+          BitOffset: 24,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 6,
+          Id: 'unknown2',
+          Name: 'Unknown 2',
+          BitLength: 8,
+          BitOffset: 32,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        },
+        {
+          Order: 7,
+          Id: 'unknown3',
+          Name: 'Unknown 3',
+          BitLength: 8,
+          BitOffset: 40,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false
+        }
+      ]
+    },
+
+    // =========================================================
     // PGN 126720 — Property Command (display, sleep, intensity)
     // Byte 2 = 0xe5 distinguishes from heartbeat and race timer
     // =========================================================
@@ -376,7 +678,7 @@ module.exports = {
           Order: 5,
           Id: 'payload',
           Name: 'Payload',
-          BitLength: 0,
+          BitLength: 344,
           BitOffset: 24,
           BitStart: 0,
           FieldType: 'Binary data',
@@ -447,6 +749,76 @@ module.exports = {
           Id: 'payload',
           Name: 'Payload',
           BitLength: 112,
+          BitOffset: 24,
+          BitStart: 0,
+          FieldType: 'Binary data',
+          Signed: false
+        }
+      ]
+    },
+
+    // =========================================================
+    // PGN 126720 — Device Identification (startup discovery)
+    // Exchanged peer-to-peer between all devices during startup
+    // =========================================================
+    {
+      PGN: 126720,
+      Id: 'garminGnxDeviceIdentification',
+      Description: 'Garmin GNX Device Identification',
+      Type: 'Fast',
+      Complete: true,
+      Length: 50,
+      Fields: [
+        {
+          Order: 1,
+          Id: 'manufacturerCode',
+          Name: 'Manufacturer Code',
+          BitLength: 11,
+          BitOffset: 0,
+          BitStart: 0,
+          Match: 229,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'MANUFACTURER_CODE',
+          Signed: false
+        },
+        {
+          Order: 2,
+          Id: 'reserved',
+          Name: 'Reserved',
+          BitLength: 2,
+          BitOffset: 11,
+          BitStart: 3,
+          FieldType: 'RESERVED'
+        },
+        {
+          Order: 3,
+          Id: 'industryCode',
+          Name: 'Industry Code',
+          BitLength: 3,
+          BitOffset: 13,
+          BitStart: 5,
+          Match: 4,
+          FieldType: 'LOOKUP',
+          LookupEnumeration: 'INDUSTRY_CODE',
+          Signed: false
+        },
+        {
+          Order: 4,
+          Id: 'command',
+          Name: 'Command',
+          BitLength: 8,
+          BitOffset: 16,
+          BitStart: 0,
+          FieldType: 'NUMBER',
+          Resolution: 1,
+          Signed: false,
+          Match: 0xf5
+        },
+        {
+          Order: 5,
+          Id: 'payload',
+          Name: 'Payload',
+          BitLength: 376,
           BitOffset: 24,
           BitStart: 0,
           FieldType: 'Binary data',
