@@ -152,7 +152,6 @@ export function Keypad() {
         {/* Status bar */}
         <div className="status-bar">
           <span className="status-label">GNX Keypad</span>
-          {!state.handshakeComplete && <span className="status-connecting">Connecting...</span>}
           {feedback && <span className="feedback">{feedback}</span>}
           {error && <span className="error">{error}</span>}
         </div>

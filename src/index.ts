@@ -27,7 +27,6 @@ interface PluginState {
   sleeping: boolean;
   displayCount: number;
   activeDisplay: number;
-  handshakeComplete: boolean;
 }
 
 export default function (app: any) {
@@ -37,7 +36,6 @@ export default function (app: any) {
   let sleeping = false;
   let displayCount = 0
   let activeDisplay = 0
-  let handshakeComplete = false;
   let n2kDiscoveryListener: ((msg: any) => void) | null = null
   let propertyListener: ((msg: any) => void) | null = null
   let rawInputListener: ((msg: any) => void) | null = null;
@@ -136,7 +134,6 @@ export default function (app: any) {
       sleeping = false;
       displayCount = 0;
       activeDisplay = 0;
-      handshakeComplete = false;
       retryTimers = [];
       displayAddresses.clear();
       syncedProperties.clear();
@@ -145,13 +142,11 @@ export default function (app: any) {
       app.emitPropertyValue("canboat-custom-pgns", pgnDefinitions);
       debug("Registered custom PGN definitions");
 
-      // Apply manual overrides from config
       if (props.displayCount && props.displayCount > 0) {
         displayCount = props.displayCount;
         debug("Display count set from config: %d", displayCount);
       }
 
-      // Apply fingerprint from config if provided; otherwise auto-discover from bus
       let fingerprintDiscovered = false;
       const manualFingerprintHex = props.fingerprint?.trim();
       if (manualFingerprintHex && manualFingerprintHex.length === 4) {
@@ -214,7 +209,6 @@ export default function (app: any) {
       app.on("canboatjs:rawoutput", rawInputHandler);
       rawInputListener = rawInputHandler;
 
-      // Auto-discover group ID and display addresses from incoming heartbeats.
       const discoveryHandler = (msg: any) => {
         if (msg.pgn !== PGN_FAST) return;
         const fields = msg.fields;
@@ -224,7 +218,6 @@ export default function (app: any) {
         if (cmd !== 0xe5 && cmd !== 0xe7) return;
         const payload = parsePayload(fields?.["Payload"]);
 
-        // Discover group ID from first valid heartbeat/property message
         if (!groupIdDiscovered && payload) {
           const groupId = extractGroupIdFromPayload(payload);
           if (groupId) {
@@ -236,7 +229,7 @@ export default function (app: any) {
           }
         }
 
-        // Track display addresses from heartbeats (last payload byte: 0x01 = display, 0x00 = keypad)
+        // Heartbeat payload[13]: 0x01 = display, 0x00 = keypad
         if (cmd === 0xe7 && payload && payload.length >= 14 && payload[13] === 0x01) {
           if (!displayAddresses.has(msg.src)) {
             displayAddresses.add(msg.src);
@@ -247,8 +240,6 @@ export default function (app: any) {
       app.on("N2KAnalyzerOut", discoveryHandler);
       n2kDiscoveryListener = discoveryHandler;
 
-      // Listen for incoming property broadcasts to discover display count
-      // and track active display selection.
       const propHandler = (msg: any) => {
         if (msg.pgn !== PGN_FAST) return;
         const fields = msg.fields;
@@ -318,7 +309,6 @@ export default function (app: any) {
       }
       displayAddresses.clear();
       syncedProperties.clear();
-      handshakeComplete = false;
       debug("Plugin stopped");
     },
 
@@ -350,7 +340,6 @@ export default function (app: any) {
           sleeping,
           displayCount: effectiveDisplayCount(),
           activeDisplay,
-          handshakeComplete,
         };
         res.json(state);
       });

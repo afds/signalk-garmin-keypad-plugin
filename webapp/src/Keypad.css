@@ -169,15 +169,4 @@
   color: #666;
 }
 
-/* Handshake connecting status */
-.status-connecting {
-  color: #ffc107;
-  font-size: 11px;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
 

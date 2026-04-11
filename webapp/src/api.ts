@@ -2,10 +2,8 @@ const API_BASE = '/plugins/signalk-garmin-keypad'
 
 export interface KeypadState {
   sleeping: boolean
-  n2kReady: boolean
   displayCount: number
   activeDisplay: number
-  handshakeComplete: boolean
 }
 
 async function post(path: string, body: Record<string, unknown>): Promise<void> {

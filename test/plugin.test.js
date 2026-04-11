@@ -207,15 +207,13 @@ describe('REST API endpoints', () => {
   })
 
   describe('GET /state (extended fields)', () => {
-    it('includes displayCount, activeDisplay, and handshakeComplete', () => {
+    it('includes displayCount and activeDisplay', () => {
       const stateRes = createMockRes()
       router._routes.get['/state']({}, stateRes)
       expect(stateRes.body).to.have.property('displayCount')
       expect(stateRes.body).to.have.property('activeDisplay')
-      expect(stateRes.body).to.have.property('handshakeComplete')
       expect(stateRes.body.displayCount).to.be.a('number')
       expect(stateRes.body.activeDisplay).to.be.a('number')
-      expect(stateRes.body.handshakeComplete).to.be.a('boolean')
     })
   })
 

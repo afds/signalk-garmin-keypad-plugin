@@ -5,9 +5,6 @@ const {
   buildPageNav,
   buildSleepWake,
   buildDisplaySelect,
-  buildHeartbeat,
-  buildDeviceIdent,
-  buildDeviceHandshake,
   resetCounters
 } = require('../dist/n2k')
 
@@ -146,75 +143,6 @@ describe('PGN 126720 property command builders', () => {
 
     it('throws for Infinity', () => {
       expect(() => buildDisplaySelect(Infinity)).to.throw()
-    })
-  })
-
-  describe('buildHeartbeat', () => {
-    it('returns PGN 126720 with heartbeat command 0xe7', () => {
-      const pgn = buildHeartbeat()
-      expect(pgn.pgn).to.equal(126720)
-      expect(pgn['Command']).to.equal(0xe7)
-    })
-
-    it('payload contains heartbeat header and direction byte', () => {
-      const pgn = buildHeartbeat()
-      const payload = pgn['Payload']
-      expect(payload).to.be.instanceOf(Buffer)
-      // HEARTBEAT_HEADER.slice(1) (13 bytes) + direction (1 byte) = 14 bytes
-      expect(payload.length).to.equal(14)
-      // First byte of payload (second byte of HEARTBEAT_HEADER, after command byte)
-      expect(payload[0]).to.equal(0x08)
-      // Last byte is direction=request
-      expect(payload[13]).to.equal(0x00)
-    })
-  })
-
-  describe('buildDeviceIdent', () => {
-    it('returns PGN 126720 with command 0xf5', () => {
-      const pgn = buildDeviceIdent()
-      expect(pgn.pgn).to.equal(126720)
-      expect(pgn['Command']).to.equal(0xf5)
-      expect(pgn['Manufacturer Code']).to.equal(229)
-    })
-
-    it('payload is 47 bytes (50 total minus 3 canboatjs header bytes)', () => {
-      const pgn = buildDeviceIdent()
-      const payload = pgn['Payload']
-      expect(payload).to.be.instanceOf(Buffer)
-      expect(payload.length).to.equal(47)
-    })
-
-    it('payload contains "GNX Keypad" product name at offset 3', () => {
-      const pgn = buildDeviceIdent()
-      const payload = pgn['Payload']
-      const name = payload.toString('ascii', 3, 3 + 10)
-      expect(name).to.equal('GNX Keypad')
-    })
-
-    it('uses provided source address', () => {
-      expect(buildDeviceIdent(42).src).to.equal(42)
-    })
-  })
-
-  describe('buildDeviceHandshake', () => {
-    it('returns PGN 61184 with command 0x0a', () => {
-      const pgn = buildDeviceHandshake()
-      expect(pgn.pgn).to.equal(61184)
-      expect(pgn['Command']).to.equal(0x0a)
-      expect(pgn['Manufacturer Code']).to.equal(229)
-    })
-
-    it('has correct fixed handshake payload', () => {
-      const pgn = buildDeviceHandshake()
-      expect(pgn['Unknown 1']).to.equal(0x00)
-      expect(pgn['Unknown 2']).to.equal(0x02)
-      expect(pgn['Unknown 3']).to.equal(0x02)
-      expect(pgn['Unknown 4']).to.equal(0xa4)
-      expect(pgn['Unknown 5']).to.equal(0x00)
-    })
-
-    it('uses provided source address', () => {
-      expect(buildDeviceHandshake(7).src).to.equal(7)
     })
   })
 

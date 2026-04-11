@@ -2,8 +2,6 @@ import {
   CMD_SELECT_PRESET,
   CMD_SAVE_PRESET,
   CMD_PAGE_NAV,
-  CMD_DEVICE_HANDSHAKE,
-  CMD_DEVICE_IDENT,
   PRODUCT_ID,
   UNK1,
   UNK2,
@@ -18,9 +16,7 @@ import {
   SLEEP,
   WAKE,
   DEFAULT_GROUP_ID,
-  buildPropertyHeader,
-  buildHeartbeatHeader,
-  buildDeviceIdentPayload
+  buildPropertyHeader
 } from './protocol'
 
 export interface PgnMessage {
@@ -31,17 +27,13 @@ export interface PgnMessage {
   [key: string]: any
 }
 
-// Module-level group ID — set once at plugin start via setGroupId().
-// Defaults to the factory group ID found in captures; updated via config or auto-discovery.
 let currentGroupId: Buffer = DEFAULT_GROUP_ID
 
 export function setGroupId(groupId: Buffer): void {
   currentGroupId = groupId
 }
 
-// Extracts the group ID from a PGN 126720 Payload buffer (either 0xe5 or 0xe7 message).
-// The group ID is at payload bytes 7-10 in both message types.
-// Returns null if the buffer is too short or the bytes are all zeros.
+// Group ID is at payload bytes 7-10 in both 0xe5 and 0xe7 messages.
 export function extractGroupIdFromPayload(payload: Buffer | null): Buffer | null {
   if (!payload || !Buffer.isBuffer(payload) || payload.length < 11) return null
   const id = payload.slice(7, 11)
@@ -106,13 +98,11 @@ export function resetCounters(): void {
   propertyCounters.clear()
 }
 
-// Decode a counter value from trailing bytes T5, T6.
 export function decodeCounter(t5: number, t6: number): number {
   return (t6 << 3) | ((t5 - 0x8e) >> 4)
 }
 
-// Set the counter for a property to match a discovered stored value.
-// The next buildTrailing call will send (stored + 1) & MAX_SEQ.
+// Next buildTrailing call will send (stored + 1) & MAX_SEQ.
 export function ensureCounterAbove(property: string, minSeq: number): void {
   const current = propertyCounters.get(property) ?? -1
   const clamped = minSeq & MAX_SEQ
@@ -187,71 +177,4 @@ export function buildDisplaySelect(index: number, src: number = DEFAULT_SRC): Pg
   return buildPropertyPgn(PROP_DISPLAY, index, src)
 }
 
-export function buildHeartbeat(src: number = DEFAULT_SRC): PgnMessage {
-  // Skip first byte of header (command byte 0xe7) — canboatjs writes it from PGN Match
-  const payload = Buffer.concat([
-    buildHeartbeatHeader(currentGroupId).slice(1),
-    Buffer.from([0x00])
-  ])
-
-  return {
-    pgn: PGN_FAST,
-    dst: DEFAULT_DST,
-    prio: DEFAULT_PRIO,
-    src,
-    'Manufacturer Code': 229,
-    'Industry Code': 4,
-    'Command': 0xe7,
-    'Payload': payload
-  }
-}
-
-// --- Startup handshake builders ---
-
-export function buildDeviceIdent(src: number = DEFAULT_SRC, dst: number = DEFAULT_DST): PgnMessage {
-  return {
-    pgn: PGN_FAST,
-    dst,
-    prio: DEFAULT_PRIO,
-    src,
-    'Manufacturer Code': 229,
-    'Industry Code': 4,
-    'Command': CMD_DEVICE_IDENT,
-    'Payload': buildDeviceIdentPayload()
-  }
-}
-
-export function buildDeviceHandshake(src: number = DEFAULT_SRC, dst: number = DEFAULT_DST): PgnMessage {
-  return {
-    pgn: PGN_SINGLE,
-    dst,
-    prio: DEFAULT_PRIO,
-    src,
-    'Manufacturer Code': 229,
-    'Industry Code': 4,
-    'Command': CMD_DEVICE_HANDSHAKE,
-    'Unknown 1': 0x00,
-    'Unknown 2': 0x02,
-    'Unknown 3': 0x02,
-    'Unknown 4': 0xa4,
-    'Unknown 5': 0x00
-  }
-}
-
-// --- ISO Request (PGN 59904) ---
-// Sends a standard NMEA 2000 ISO Request to trigger mutual discovery.
-// The real keypad requests PGN 60928 (Address Claim) from each display
-// during startup. Displays do NOT validate Product Code from PGN 126996 —
-// tested with a generic ESP32 gateway (non-Garmin identity) and handshake
-// completes successfully.
-
-export function buildIsoRequest(requestedPgn: number, src: number = DEFAULT_SRC, dst: number = DEFAULT_DST): PgnMessage {
-  return {
-    pgn: 59904,
-    dst,
-    prio: 6,
-    src,
-    'PGN': requestedPgn
-  }
-}
 
