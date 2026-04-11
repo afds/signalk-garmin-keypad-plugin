@@ -38,10 +38,6 @@ export async function pageNavigate(direction: 'next' | 'previous'): Promise<void
   await post('/page', { direction })
 }
 
-export async function selectDisplay(index: number): Promise<void> {
-  await post('/display/select', { index })
-}
-
 export async function cycleDisplay(direction: 'up' | 'down'): Promise<{ ok: boolean, displayIndex: number }> {
   const res = await fetch(`${API_BASE}/display/cycle`, {
     method: 'POST',

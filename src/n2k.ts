@@ -13,7 +13,6 @@ import {
   DEFAULT_SRC,
   DEFAULT_DST,
   DEFAULT_PRIO,
-  GARMIN_HEADER,
   PROP_SLEEP,
   PROP_DISPLAY,
   SLEEP,
@@ -256,39 +255,3 @@ export function buildIsoRequest(requestedPgn: number, src: number = DEFAULT_SRC,
   }
 }
 
-// --- Raw actisense encoding (bypasses canboatjs toPgn) ---
-// Encodes a PGN 126720 message directly as an actisense string.
-// This avoids potential issues in canboatjs toPgn field encoding and
-// ensures prio is set correctly (canboatjs writeObject drops prio).
-
-function bufToActisenseHex(buf: Buffer): string {
-  return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join(',')
-}
-
-export function encodePgnAsActisense(pgn: PgnMessage): string {
-  const command = pgn['Command']
-  const payload: Buffer = pgn['Payload']
-  const data = Buffer.concat([
-    Buffer.from([GARMIN_HEADER[0], GARMIN_HEADER[1]]),
-    Buffer.from([command]),
-    payload
-  ])
-  const ts = new Date().toISOString()
-  return `${ts},${pgn.prio},${pgn.pgn},${pgn.src},${pgn.dst},${data.length},${bufToActisenseHex(data)}`
-}
-
-export function buildRawPropertyActisense(
-  property: string,
-  value: number,
-  src: number = DEFAULT_SRC,
-  dst: number = DEFAULT_DST
-): string {
-  const payload = buildPropertyPayload(property, value)
-  const data = Buffer.concat([
-    Buffer.from([GARMIN_HEADER[0], GARMIN_HEADER[1]]),
-    Buffer.from([0xe5]),
-    payload
-  ])
-  const ts = new Date().toISOString()
-  return `${ts},${DEFAULT_PRIO},${PGN_FAST},${src},${dst},${data.length},${bufToActisenseHex(data)}`
-}

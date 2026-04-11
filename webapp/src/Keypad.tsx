@@ -12,41 +12,6 @@ import './Keypad.css'
 
 const LONG_PRESS_MS = 500
 
-function useLongPress(
-  onShortPress: () => void,
-  onLongPress: () => void
-) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const longPressedRef = useRef(false)
-
-  const onPointerDown = useCallback(() => {
-    longPressedRef.current = false
-    timerRef.current = setTimeout(() => {
-      longPressedRef.current = true
-      onLongPress()
-    }, LONG_PRESS_MS)
-  }, [onLongPress])
-
-  const onPointerUp = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-    if (!longPressedRef.current) {
-      onShortPress()
-    }
-  }, [onShortPress])
-
-  const onPointerLeave = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-  }, [])
-
-  return { onPointerDown, onPointerUp, onPointerLeave }
-}
-
 function PresetButton({ index, onSelect, onSave }: {
   index: number
   onSelect: () => void

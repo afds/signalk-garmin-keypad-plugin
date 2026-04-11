@@ -169,14 +169,6 @@
   color: #666;
 }
 
-/* Display index indicator */
-.display-indicator {
-  font-size: 16px;
-  font-weight: 600;
-  color: #888;
-  font-variant-numeric: tabular-nums;
-}
-
 /* Handshake connecting status */
 .status-connecting {
   color: #ffc107;

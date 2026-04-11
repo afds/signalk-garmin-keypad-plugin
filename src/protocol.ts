@@ -4,19 +4,13 @@ export const PLUGIN_ID = 'signalk-garmin-keypad'
 export const PGN_SINGLE = 61184
 export const PGN_FAST = 126720
 
-// Garmin manufacturer header bytes (manufacturer code 229, industry code 4 = Marine)
-export const GARMIN_HEADER = [0xe5, 0x98] as const
-
 // PGN 61184 command bytes
 export const CMD_SELECT_PRESET = 0x84
 export const CMD_SAVE_PRESET = 0x85
 export const CMD_PAGE_NAV = 0x49
-export const CMD_DEVICE_ACK = 0x48
 export const CMD_DEVICE_HANDSHAKE = 0x0a
 
 // PGN 126720 command bytes
-export const CMD_PROPERTY = 0xe5
-export const CMD_HEARTBEAT = 0xe7
 export const CMD_DEVICE_IDENT = 0xf5
 
 // Device identification bytes (constant in all PGN 61184 messages)

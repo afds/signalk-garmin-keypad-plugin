@@ -179,20 +179,6 @@ describe('REST API endpoints', () => {
     })
   })
 
-  describe('POST /display/select', () => {
-    it('emits PGN 126720 display select command', () => {
-      const res = createMockRes()
-      router._routes.post['/display/select'](createMockReq('POST', { index: 1 }), res)
-      expect(res.body.ok).to.equal(true)
-      expect(res.body.displayIndex).to.equal(1)
-      expect(app.emitted).to.have.length(1)
-
-      const pgn = app.emitted[0]
-      expect(pgn.pgn).to.equal(126720)
-      expect(pgn['Command']).to.equal(0xe5)
-    })
-  })
-
   describe('POST /power', () => {
     it('emits sleep command via PGN 126720', () => {
       const res = createMockRes()
@@ -235,11 +221,6 @@ describe('REST API endpoints', () => {
 
   describe('POST /display/cycle', () => {
     it('cycles down (increments display index)', () => {
-      // First select display 0
-      const selectRes = createMockRes()
-      router._routes.post['/display/select'](createMockReq('POST', { index: 0 }), selectRes)
-      app.emitted = []
-
       const res = createMockRes()
       router._routes.post['/display/cycle'](createMockReq('POST', { direction: 'down' }), res)
       expect(res.body.ok).to.equal(true)
@@ -247,11 +228,6 @@ describe('REST API endpoints', () => {
     })
 
     it('cycles up (decrements, clamped to 0 without displayCount)', () => {
-      // Start at display 0
-      const selectRes = createMockRes()
-      router._routes.post['/display/select'](createMockReq('POST', { index: 0 }), selectRes)
-      app.emitted = []
-
       const res = createMockRes()
       router._routes.post['/display/cycle'](createMockReq('POST', { direction: 'up' }), res)
       expect(res.body.ok).to.equal(true)
@@ -262,14 +238,6 @@ describe('REST API endpoints', () => {
       const res = createMockRes()
       router._routes.post['/display/cycle'](createMockReq('POST', { direction: 'left' }), res)
       expect(res.statusCode).to.equal(400)
-    })
-  })
-
-  describe('POST /display/select (wrap-around)', () => {
-    it('wraps negative index to 0 without displayCount', () => {
-      const res = createMockRes()
-      router._routes.post['/display/select'](createMockReq('POST', { index: -1 }), res)
-      expect(res.body.displayIndex).to.equal(0)
     })
   })
 
@@ -285,44 +253,6 @@ describe('REST API endpoints', () => {
       router._routes.post['/preset/save'](createMockReq('POST', { index: 0.5 }), res)
       expect(res.statusCode).to.equal(400)
     })
-
-    it('/display/select rejects non-integer index', () => {
-      const res = createMockRes()
-      router._routes.post['/display/select'](createMockReq('POST', { index: 1.5 }), res)
-      expect(res.statusCode).to.equal(400)
-    })
-
-    it('/display/select rejects NaN', () => {
-      const res = createMockRes()
-      router._routes.post['/display/select'](createMockReq('POST', { index: NaN }), res)
-      expect(res.statusCode).to.equal(400)
-    })
-
   })
 })
 
-describe('Debug routes', () => {
-  it('are not registered by default', () => {
-    const app = createMockApp()
-    const plugin = pluginFactory(app)
-    const router = createMockRouter()
-    plugin.start({ sourceAddress: 0 })
-    plugin.registerWithRouter(router)
-    expect(router._routes.post['/debug/replay']).to.be.undefined
-    expect(router._routes.post['/debug/raw-property']).to.be.undefined
-    expect(router._routes.post['/debug/raw-pgn']).to.be.undefined
-    plugin.stop()
-  })
-
-  it('are registered when enableDebugRoutes is true', () => {
-    const app = createMockApp()
-    const plugin = pluginFactory(app)
-    const router = createMockRouter()
-    plugin.start({ sourceAddress: 0, enableDebugRoutes: true })
-    plugin.registerWithRouter(router)
-    expect(router._routes.post['/debug/replay']).to.be.a('function')
-    expect(router._routes.post['/debug/raw-property']).to.be.a('function')
-    expect(router._routes.post['/debug/raw-pgn']).to.be.a('function')
-    plugin.stop()
-  })
-})

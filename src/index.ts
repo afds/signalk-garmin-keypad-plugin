@@ -3,10 +3,8 @@ import {
   PGN_FAST,
   PGN_SINGLE,
   DEFAULT_SRC,
-  DEFAULT_GROUP_ID_HEX,
   PROP_DISP_CNT,
   PROP_DISPLAY,
-  PROP_SLEEP,
   parseGroupId
 } from './protocol'
 import {
@@ -22,8 +20,6 @@ import {
   setGroupId,
   setFingerprint,
   extractGroupIdFromPayload,
-  encodePgnAsActisense,
-  buildRawPropertyActisense,
   decodeCounter,
   ensureCounterAbove,
   resetCounters,
@@ -37,7 +33,6 @@ interface PluginOptions {
   groupId?: string
   displayCount?: number
   fingerprint?: string
-  enableDebugRoutes?: boolean
 }
 
 interface PluginState {
@@ -61,10 +56,7 @@ export default function (app: any) {
   let heartbeatInterval: ReturnType<typeof setInterval> | null = null
   let n2kDiscoveryListener: ((msg: any) => void) | null = null
   let propertyListener: ((msg: any) => void) | null = null
-  let diagListener: ((msg: any) => void) | null = null
   let handshakeResponseListener: ((msg: any) => void) | null = null
-  let rawSendListener: ((msg: any) => void) | null = null
-  let rawInputListener: ((msg: any) => void) | null = null
   let handshakeTimers: ReturnType<typeof setTimeout>[] = []
   const displayAddresses = new Set<number>()
   const handshakeRespondedTo = new Set<number>()
@@ -95,16 +87,6 @@ export default function (app: any) {
     }
     debug('Sending PGN %d: %j', pgn.pgn, pgn)
     app.emit('nmea2000JsonOut', pgn)
-  }
-
-  // Send a PGN 126720 message as a raw actisense string, bypassing canboatjs toPgn.
-  // This ensures prio is sent correctly and avoids any toPgn encoding issues.
-  function emitRawActisense(actisense: string): void {
-    if (!n2kReady) {
-      debug('N2K output not yet available')
-    }
-    debug('Sending raw actisense: %s', actisense)
-    app.emit('nmea2000out', actisense)
   }
 
   const plugin = {
@@ -150,21 +132,12 @@ export default function (app: any) {
             + 'gnx_selected_disp property command on your bus.',
           default: 'f9a9'
         },
-        enableDebugRoutes: {
-          type: 'boolean' as const,
-          title: 'Enable Debug Routes',
-          description:
-            'Enable /debug/* HTTP endpoints for injecting raw NMEA 2000 traffic. '
-            + 'Only enable during development.',
-          default: false
-        }
       }
     },
 
     start: function (props: PluginOptions) {
       options = {
-        sourceAddress: props.sourceAddress ?? DEFAULT_SRC,
-        enableDebugRoutes: !!props.enableDebugRoutes
+        sourceAddress: props.sourceAddress ?? DEFAULT_SRC
       }
       sleeping = false
       n2kReady = false
@@ -207,85 +180,6 @@ export default function (app: any) {
           debug('Invalid groupId in config, will auto-discover: %s', err)
         }
       }
-
-      // Log all incoming Garmin N2K messages for diagnostics
-      let dumpedRawOnce = false
-      const diagHandler = (msg: any) => {
-        const mfr = msg.fields?.['Manufacturer Code']
-        if ((msg.pgn === PGN_FAST || msg.pgn === PGN_SINGLE) && (mfr === 229 || mfr === 'Garmin')) {
-          const cmd = msg.fields?.['Command']
-          debug('N2K IN pgn=%d src=%d dst=%d cmd=0x%s fields=%j',
-            msg.pgn, msg.src, msg.dst,
-            (cmd ?? 0).toString(16),
-            msg.fields)
-          if (!dumpedRawOnce && msg.pgn === PGN_FAST && cmd === 0xe5) {
-            dumpedRawOnce = true
-            const keys = Object.keys(msg).filter(k => k !== 'fields')
-            debug('N2K raw msg keys: %j values: %j', keys, keys.reduce((o: any, k: string) => { o[k] = msg[k]; return o }, {}))
-          }
-        }
-      }
-      app.on('N2KAnalyzerOut', diagHandler)
-      diagListener = diagHandler
-
-      // Log the exact actisense string that canboatjs sends to the serial port.
-      // This is emitted AFTER toPgn encoding, so we can compare actual vs expected bytes.
-      const rawSendHandler = (msg: any) => {
-        debug('canboatjs:rawsend %s', msg?.data ?? msg)
-      }
-      app.on('canboatjs:rawsend', rawSendHandler)
-      rawSendListener = rawSendHandler
-
-      // Listen for raw incoming actisense data BEFORE canboatjs parses (and truncates) it.
-      // This lets us read the full trailing bytes (fingerprint + counter) from
-      // NACKs that exceed the PGN definition's BitLength of 344 (43 bytes).
-      const rawInputHandler = (msg: any) => {
-        if (typeof msg !== 'string') return
-        const parts = msg.split(',')
-        if (parts.length < 9) return
-        const pgn = parseInt(parts[2])
-        if (pgn !== PGN_FAST) return
-        const msgSrc = parseInt(parts[3])
-        if (!displayAddresses.has(msgSrc)) return
-        // Check for property command: bytes [6],[7] = e5,98 (garmin header), [8] = e5 (cmd)
-        if (parts[6] !== 'e5' || parts[8] !== 'e5') return
-        const len = parseInt(parts[5])
-        if (len < 40) return
-        // Parse data bytes into a buffer
-        const dataBytes = parts.slice(6).map(h => parseInt(h, 16))
-        const payload = Buffer.from(dataBytes.slice(3)) // skip e5,98,e5 header
-        if (payload.length < 20) return
-        const strLen = payload[13]
-        if (payload.length < 14 + strLen) return
-        const propName = payload.toString('ascii', 14, 14 + strLen - 1)
-        const valueOffset = 14 + strLen + 3
-        if (valueOffset >= payload.length) return
-        const value = payload[valueOffset]
-        // Full trailing bytes (7 bytes after value)
-        const trailingStart = valueOffset + 1
-        if (payload.length >= trailingStart + 7) {
-          const t0 = payload[trailingStart]
-          const t1 = payload[trailingStart + 1]
-          const t2 = payload[trailingStart + 2]
-          const t3 = payload[trailingStart + 3]
-          const t4 = payload[trailingStart + 4]
-          const t5 = payload[trailingStart + 5]
-          const t6 = payload[trailingStart + 6]
-          const storedSeq = decodeCounter(t5, t6)
-          debug('RAW NACK %s src=%d val=%d fingerprint=%s counter=%d trailing=[%s]',
-            propName, msgSrc, value,
-            t3.toString(16).padStart(2, '0') + t4.toString(16).padStart(2, '0'),
-            storedSeq,
-            [t0, t1, t2, t3, t4, t5, t6].map(b => b.toString(16).padStart(2, '0')).join(' '))
-          // Auto-adjust counter from the full (untruncated) NACK data
-          ensureCounterAbove(propName, storedSeq)
-        } else {
-          debug('RAW NACK %s src=%d val=%d len=%d (still truncated)',
-            propName, msgSrc, value, payload.length)
-        }
-      }
-      app.on('canboatjs:rawoutput', rawInputHandler)
-      rawInputListener = rawInputHandler
 
       // Auto-discover group ID and display addresses from incoming heartbeats.
       const discoveryHandler = (msg: any) => {
@@ -496,21 +390,9 @@ export default function (app: any) {
         app.removeListener('N2KAnalyzerOut', propertyListener)
         propertyListener = null
       }
-      if (diagListener) {
-        app.removeListener('N2KAnalyzerOut', diagListener)
-        diagListener = null
-      }
       if (handshakeResponseListener) {
         app.removeListener('N2KAnalyzerOut', handshakeResponseListener)
         handshakeResponseListener = null
-      }
-      if (rawSendListener) {
-        app.removeListener('canboatjs:rawsend', rawSendListener)
-        rawSendListener = null
-      }
-      if (rawInputListener) {
-        app.removeListener('canboatjs:rawoutput', rawInputListener)
-        rawInputListener = null
       }
       displayAddresses.clear()
       handshakeRespondedTo.clear()
@@ -625,57 +507,6 @@ export default function (app: any) {
         sleeping = goToSleep
         res.json({ ok: true })
       })
-
-      if (options.enableDebugRoutes) {
-        // Diagnostic: replay a raw actisense string to test NGT-1 fast-packet sending
-        router.post('/debug/replay', (req: any, res: any) => {
-          const actisense = req.body?.actisense
-          if (typeof actisense !== 'string') {
-            return res.status(400).json({ error: 'actisense string required' })
-          }
-          debug('Replaying raw actisense: %s', actisense)
-          app.emit('nmea2000out', actisense)
-          res.json({ ok: true })
-        })
-
-        // Diagnostic: send a property command as raw actisense (bypasses canboatjs toPgn).
-        // Uses prio=7 (matching real keypad) and constructs bytes directly.
-        // Test with: curl -X POST http://localhost:3000/plugins/signalk-garmin-keypad/debug/raw-property \
-        //   -H 'Content-Type: application/json' -d '{"property":"gnx_selected_disp","value":1}'
-        router.post('/debug/raw-property', (req: any, res: any) => {
-          const property = req.body?.property
-          const value = req.body?.value
-          if (typeof property !== 'string' || typeof value !== 'number') {
-            return res.status(400).json({ error: 'property (string) and value (number) required' })
-          }
-          const actisense = buildRawPropertyActisense(property, value, src())
-          debug('Sending raw property actisense: %s', actisense)
-          emitRawActisense(actisense)
-          res.json({ ok: true, actisense })
-        })
-
-        // Diagnostic: send a PGN 126720 via raw actisense (bypasses toPgn, preserves prio)
-        router.post('/debug/raw-pgn', (req: any, res: any) => {
-          const property = req.body?.property
-          const value = req.body?.value
-          if (typeof property !== 'string' || typeof value !== 'number') {
-            return res.status(400).json({ error: 'property (string) and value (number) required' })
-          }
-          // Build PGN object normally, then encode as raw actisense
-          let builder: (v: number, s: number) => PgnMessage
-          switch (property) {
-            case 'gnx_selected_disp': builder = buildDisplaySelect; break
-            case 'gnx_sleep_mode_id': builder = (v, s) => buildSleepWake(v === 0, s); break
-            default:
-              return res.status(400).json({ error: 'unknown property' })
-          }
-          const pgn = builder(value, src())
-          const actisense = encodePgnAsActisense(pgn)
-          debug('Sending raw PGN actisense: %s', actisense)
-          emitRawActisense(actisense)
-          res.json({ ok: true, actisense })
-        })
-      }
     }
   }
 

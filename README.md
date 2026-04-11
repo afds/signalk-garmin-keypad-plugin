@@ -17,8 +17,6 @@ Sends Garmin proprietary NMEA 2000 messages:
 - **PGN 61184** — single-frame button events (preset select/save, page navigation)
 - **PGN 126720** — fast-packet property commands (display selection, sleep/wake, heartbeat)
 
-Based on reverse-engineered protocol documented in `canboatjs/GARMIN_GNX_KEYPAD.md`.
-
 ## Configuration
 
 | Option | Description | Default |
@@ -36,7 +34,7 @@ All endpoints at `/plugins/signalk-garmin-keypad/`:
 | POST | `/preset/select` | `{ "index": 0-3 }` |
 | POST | `/preset/save` | `{ "index": 0-3 }` |
 | POST | `/page` | `{ "direction": "next" \| "previous" }` |
-| POST | `/display/select` | `{ "index": number }` |
+| POST | `/display/cycle` | `{ "direction": "up" \| "down" }` |
 | POST | `/power` | `{ "action": "sleep" \| "wake" }` |
 
 ## Development
