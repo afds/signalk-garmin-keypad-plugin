@@ -8,7 +8,7 @@
     "build:plugin": "tsc",
     "build:webapp": "cd webapp && npm run build",
     "watch": "tsc -w",
-    "test": "mocha --exit"
+    "test": "tsc && mocha --exit"
   },
   "keywords": [
     "signalk-node-server-plugin",

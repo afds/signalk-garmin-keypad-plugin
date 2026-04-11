@@ -40,6 +40,11 @@ describe('PGN 61184 button event builders', () => {
       expect(() => buildSelectPreset(4)).to.throw()
       expect(() => buildSelectPreset(-1)).to.throw()
     })
+
+    it('throws for non-integer preset index', () => {
+      expect(() => buildSelectPreset(1.5)).to.throw()
+      expect(() => buildSelectPreset(NaN)).to.throw()
+    })
   })
 
   describe('buildSavePreset', () => {
@@ -133,6 +138,11 @@ describe('PGN 126720 property command builders', () => {
       expect(() => buildIntensity(3)).to.throw()
       expect(() => buildIntensity(-1)).to.throw()
     })
+
+    it('throws for non-integer level', () => {
+      expect(() => buildIntensity(1.5)).to.throw()
+      expect(() => buildIntensity(NaN)).to.throw()
+    })
   })
 
   describe('buildDisplaySelect', () => {
@@ -150,6 +160,22 @@ describe('PGN 126720 property command builders', () => {
       const prop = 'gnx_selected_disp'
       const valueOffset = 13 + 1 + prop.length + 1 + 3
       expect(payload[valueOffset]).to.equal(0x02)
+    })
+
+    it('throws for non-integer index', () => {
+      expect(() => buildDisplaySelect(1.5)).to.throw()
+    })
+
+    it('throws for negative index', () => {
+      expect(() => buildDisplaySelect(-1)).to.throw()
+    })
+
+    it('throws for NaN', () => {
+      expect(() => buildDisplaySelect(NaN)).to.throw()
+    })
+
+    it('throws for Infinity', () => {
+      expect(() => buildDisplaySelect(Infinity)).to.throw()
     })
   })
 
@@ -237,16 +263,16 @@ describe('PGN 126720 property command builders', () => {
       const dispPayload = disp1['Payload']
       const sleepPayload2 = sleep2['Payload']
 
-      // Counters start at COUNTER_OFFSET (500) + 1 = 501
-      // Sleep seq=501 → T5=0x8e + (501 & 7)*0x10 = 0xde, seq=502 → 0xee
+      // Counters start at 0 after reset (prev=-1, seq=(prev+1)&0x3FF=0)
+      // Sleep seq=0 → T5=0x8e + (0 & 7)*0x10 = 0x8e, seq=1 → 0x9e
       const sleepT5_1 = sleepPayload1[sleepPayload1.length - 2]
       const sleepT5_2 = sleepPayload2[sleepPayload2.length - 2]
-      expect(sleepT5_1).to.equal(0xde) // seq=501
-      expect(sleepT5_2).to.equal(0xee) // seq=502
+      expect(sleepT5_1).to.equal(0x8e) // seq=0
+      expect(sleepT5_2).to.equal(0x9e) // seq=1
 
-      // Display counter: seq=501 → T5=0xde (independent from sleep)
+      // Display counter: seq=0 → T5=0x8e (independent from sleep)
       const dispT5 = dispPayload[dispPayload.length - 2]
-      expect(dispT5).to.equal(0xde) // seq=501
+      expect(dispT5).to.equal(0x8e) // seq=0
     })
   })
 })

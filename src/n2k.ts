@@ -75,14 +75,14 @@ function buildButtonPgn(
 }
 
 export function buildSelectPreset(index: number, src: number = DEFAULT_SRC): PgnMessage {
-  if (index < 0 || index > 3) {
+  if (!Number.isInteger(index) || index < 0 || index > 3) {
     throw new Error(`Preset index must be 0-3, got ${index}`)
   }
   return buildButtonPgn(CMD_SELECT_PRESET, 'Preset Index', index, src)
 }
 
 export function buildSavePreset(index: number, src: number = DEFAULT_SRC): PgnMessage {
-  if (index < 0 || index > 3) {
+  if (!Number.isInteger(index) || index < 0 || index > 3) {
     throw new Error(`Preset index must be 0-3, got ${index}`)
   }
   return buildButtonPgn(CMD_SAVE_PRESET, 'Preset Index', index, src)
@@ -97,8 +97,12 @@ export function buildPageNav(direction: 'next' | 'previous', src: number = DEFAU
 
 // Per-property sequence counters (mimics real keypad behavior).
 // Each property name maintains its own independent counter.
+// Counter space is 10-bit (0-1023), wrapping at 1024.
 // Bytes 5-6 encode counter C as: byte5 = 0x8e + (C & 7) * 0x10, byte6 = C >> 3.
+// T6 must stay in 0x00-0x7f range (max counter 1023); displays silently
+// reject messages with T6 >= 0x80.
 const propertyCounters = new Map<string, number>()
+const MAX_SEQ = 0x3FF  // 1023 — maximum valid counter value
 
 export function resetCounters(): void {
   propertyCounters.clear()
@@ -109,14 +113,13 @@ export function decodeCounter(t5: number, t6: number): number {
   return (t6 << 3) | ((t5 - 0x8e) >> 4)
 }
 
-// Ensure the next counter for a property will exceed minSeq.
-// Called when we observe a display broadcasting a stored counter
-// (NACK pattern) that is >= our current counter.
+// Set the counter for a property to match a discovered stored value.
+// The next buildTrailing call will send (stored + 1) & MAX_SEQ.
 export function ensureCounterAbove(property: string, minSeq: number): void {
-  const currentCount = propertyCounters.get(property) ?? 0
-  const nextSeq = COUNTER_OFFSET + currentCount + 1
-  if (nextSeq <= minSeq) {
-    propertyCounters.set(property, minSeq - COUNTER_OFFSET)
+  const current = propertyCounters.get(property) ?? -1
+  const clamped = minSeq & MAX_SEQ
+  if (current < clamped) {
+    propertyCounters.set(property, clamped)
   }
 }
 
@@ -131,23 +134,18 @@ export function setFingerprint(fp: [number, number]): void {
   keypadFingerprint = fp
 }
 
-// Initial counter offset — must exceed the highest per-property counter
-// stored on the displays (persisted across reboots).  Real keypads track
-// the current counter and increment by 1; we start high to guarantee
-// our first command exceeds whatever counter the displays have stored.
-const COUNTER_OFFSET = 500
-
 function buildTrailing(property: string): Buffer {
-  const seq = COUNTER_OFFSET + (propertyCounters.get(property) ?? 0) + 1
-  propertyCounters.set(property, (propertyCounters.get(property) ?? 0) + 1)
+  const prev = propertyCounters.get(property) ?? -1
+  const seq = (prev + 1) & MAX_SEQ
+  propertyCounters.set(property, seq)
   const buf = Buffer.alloc(7)
   buf[0] = 0x2e
   buf[1] = 0x80 | (Math.random() * 128 | 0)  // T1: random nonce, bit 7 must be set or displays reject
   buf[2] = 0xb0         // T2: 1-bit state flag — 0xb0 is safe constant
   buf[3] = keypadFingerprint[0]  // T3: keypad fingerprint byte 1
   buf[4] = keypadFingerprint[1]  // T4: keypad fingerprint byte 2
-  buf[5] = 0x8e + (seq & 7) * 0x10  // T5: counter low byte
-  buf[6] = (seq >> 3) & 0xff         // T6: counter high byte
+  buf[5] = 0x8e + (seq & 7) * 0x10  // T5: counter low bits
+  buf[6] = (seq >> 3) & 0x7f         // T6: counter high bits (must be 0x00-0x7f)
   return buf
 }
 
@@ -185,13 +183,16 @@ export function buildSleepWake(sleep: boolean, src: number = DEFAULT_SRC): PgnMe
 }
 
 export function buildIntensity(level: number, src: number = DEFAULT_SRC): PgnMessage {
-  if (level < 0 || level > 2) {
+  if (!Number.isInteger(level) || level < 0 || level > 2) {
     throw new Error(`Intensity level must be 0-2, got ${level}`)
   }
   return buildPropertyPgn(PROP_INTENSITY, level, src)
 }
 
 export function buildDisplaySelect(index: number, src: number = DEFAULT_SRC): PgnMessage {
+  if (!Number.isInteger(index) || index < 0) {
+    throw new Error(`Display index must be a non-negative integer, got ${index}`)
+  }
   return buildPropertyPgn(PROP_DISPLAY, index, src)
 }
 

@@ -678,7 +678,7 @@ module.exports = {
           Order: 5,
           Id: 'payload',
           Name: 'Payload',
-          BitLength: 344,
+          BitLength: 384,
           BitOffset: 24,
           BitStart: 0,
           FieldType: 'Binary data',

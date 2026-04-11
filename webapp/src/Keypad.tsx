@@ -166,6 +166,8 @@ export function Keypad() {
 
   useEffect(() => {
     refreshState()
+    const id = setInterval(refreshState, 5000)
+    return () => clearInterval(id)
   }, [refreshState])
 
   const handleSelectPreset = async (index: number) => {

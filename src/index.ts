@@ -10,6 +10,7 @@ import {
   PROP_DISP_CNT,
   PROP_DISPLAY,
   PROP_INTENSITY,
+  PROP_SLEEP,
   parseGroupId
 } from './protocol'
 import {
@@ -30,6 +31,7 @@ import {
   buildRawPropertyActisense,
   decodeCounter,
   ensureCounterAbove,
+  resetCounters,
   PgnMessage
 } from './n2k'
 
@@ -40,6 +42,7 @@ interface PluginOptions {
   groupId?: string
   displayCount?: number
   fingerprint?: string
+  enableDebugRoutes?: boolean
 }
 
 interface PluginState {
@@ -72,7 +75,6 @@ export default function (app: any) {
   let handshakeTimers: ReturnType<typeof setTimeout>[] = []
   const displayAddresses = new Set<number>()
   const handshakeRespondedTo = new Set<number>()
-  const nackCounts = new Map<string, number>()
 
   function src(): number {
     return options.sourceAddress ?? DEFAULT_SRC
@@ -154,13 +156,22 @@ export default function (app: any) {
             + 'Default is f9a9 (real GNX Keypad). Find yours in the trailing bytes of any accepted '
             + 'gnx_selected_disp property command on your bus.',
           default: 'f9a9'
+        },
+        enableDebugRoutes: {
+          type: 'boolean' as const,
+          title: 'Enable Debug Routes',
+          description:
+            'Enable /debug/* HTTP endpoints for injecting raw NMEA 2000 traffic. '
+            + 'Only enable during development.',
+          default: false
         }
       }
     },
 
     start: function (props: PluginOptions) {
       options = {
-        sourceAddress: props.sourceAddress ?? DEFAULT_SRC
+        sourceAddress: props.sourceAddress ?? DEFAULT_SRC,
+        enableDebugRoutes: !!props.enableDebugRoutes
       }
       backlightLevel = INTENSITY_100
       sleeping = false
@@ -169,6 +180,9 @@ export default function (app: any) {
       activeDisplay = 0
       handshakeComplete = false
       handshakeTimers = []
+      displayAddresses.clear()
+      handshakeRespondedTo.clear()
+      resetCounters()
 
       app.emitPropertyValue('canboat-custom-pgns', pgnDefinitions)
       debug('Registered custom PGN definitions')
@@ -273,7 +287,6 @@ export default function (app: any) {
             [t0, t1, t2, t3, t4, t5, t6].map(b => b.toString(16).padStart(2, '0')).join(' '))
           // Auto-adjust counter from the full (untruncated) NACK data
           ensureCounterAbove(propName, storedSeq)
-          nackCounts.delete(propName)
         } else {
           debug('RAW NACK %s src=%d val=%d len=%d (still truncated)',
             propName, msgSrc, value, payload.length)
@@ -342,16 +355,6 @@ export default function (app: any) {
           debug('Counter discovery: %s src=%d stored=%d t5=0x%s t6=0x%s',
             propName, msg.src, storedSeq, t5.toString(16), t6.toString(16))
           ensureCounterAbove(propName, storedSeq)
-          nackCounts.delete(propName)
-        } else {
-          // Payload truncated (long property name exceeds PGN BitLength).
-          // Bump counter progressively on each NACK until we exceed stored value.
-          const nacks = (nackCounts.get(propName) ?? 0) + 1
-          nackCounts.set(propName, nacks)
-          const bumpTo = Math.min(500 + nacks * 500, 2040)
-          debug('Counter discovery truncated: %s nack=%d bumping to %d (payloadLen=%d need=%d)',
-            propName, nacks, bumpTo, payload.length, valueOffset + 1 + 7)
-          ensureCounterAbove(propName, bumpTo)
         }
 
         if (propName === PROP_DISP_CNT && value > 0 && displayCount === 0) {
@@ -450,14 +453,28 @@ export default function (app: any) {
               emit(buildDeviceHandshake(src()))
             }
 
+            // Send probes for ALL properties to discover stored counters
+            // via NACK responses. Each probe will be rejected (counter too low),
+            // triggering NACKs that reveal the display's stored counter.
             const t3 = setTimeout(() => {
+              debug('Sending property probes to discover stored counters')
+              emit(buildSleepWake(false, src()))
+              emit(buildDisplaySelect(0, src()))
+              emit(buildIntensity(0, src()))
+            }, 500)
+            handshakeTimers.push(t3)
+
+            // Wait for NACKs (~200ms) + cooldown (~2s) before sending wake
+            // and allowing user commands. Displays may ignore commands from
+            // a source that recently sent a rejected command.
+            const t4 = setTimeout(() => {
               debug('Sending wake command')
               emit(buildSleepWake(false, src()))
               sleeping = false
               handshakeComplete = true
               debug('Handshake complete')
-            }, 500)
-            handshakeTimers.push(t3)
+            }, 3500)
+            handshakeTimers.push(t4)
           }, 500)
           handshakeTimers.push(t2)
         }, 4000)
@@ -504,6 +521,7 @@ export default function (app: any) {
         app.removeListener('canboatjs:rawoutput', rawInputListener)
         rawInputListener = null
       }
+      displayAddresses.clear()
       handshakeRespondedTo.clear()
       n2kReady = false
       handshakeComplete = false
@@ -545,8 +563,8 @@ export default function (app: any) {
 
       router.post('/preset/select', (req: any, res: any) => {
         const index = req.body?.index
-        if (typeof index !== 'number' || index < 0 || index > 3) {
-          return res.status(400).json({ error: 'index must be 0-3' })
+        if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 3) {
+          return res.status(400).json({ error: 'index must be an integer 0-3' })
         }
         emit(buildSelectPreset(index, src()))
         res.json({ ok: true })
@@ -554,8 +572,8 @@ export default function (app: any) {
 
       router.post('/preset/save', (req: any, res: any) => {
         const index = req.body?.index
-        if (typeof index !== 'number' || index < 0 || index > 3) {
-          return res.status(400).json({ error: 'index must be 0-3' })
+        if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 3) {
+          return res.status(400).json({ error: 'index must be an integer 0-3' })
         }
         emit(buildSavePreset(index, src()))
         res.json({ ok: true })
@@ -572,8 +590,8 @@ export default function (app: any) {
 
       router.post('/display/select', (req: any, res: any) => {
         const index = req.body?.index
-        if (typeof index !== 'number') {
-          return res.status(400).json({ error: 'index must be a number' })
+        if (typeof index !== 'number' || !Number.isInteger(index)) {
+          return res.status(400).json({ error: 'index must be an integer' })
         }
         let target = index
         const count = effectiveDisplayCount()
@@ -620,66 +638,65 @@ export default function (app: any) {
 
       router.post('/backlight', (req: any, res: any) => {
         const level = req.body?.level
-        if (typeof level !== 'number' || level < 0 || level > 2) {
+        if (typeof level !== 'number' || !Number.isInteger(level) || level < 0 || level > 2) {
           return res.status(400).json({ error: 'level must be 0, 1, or 2' })
         }
-        // Use raw actisense to bypass canboatjs toPgn — ensures prio=7 matches
-        // real keypad and avoids any encoding issues with the longer payload.
-        const actisense = buildRawPropertyActisense(PROP_INTENSITY, level, src())
-        emitRawActisense(actisense)
+        emit(buildIntensity(level, src()))
         backlightLevel = level
         res.json({ ok: true })
       })
 
-      // Diagnostic: replay a raw actisense string to test NGT-1 fast-packet sending
-      router.post('/debug/replay', (req: any, res: any) => {
-        const actisense = req.body?.actisense
-        if (typeof actisense !== 'string') {
-          return res.status(400).json({ error: 'actisense string required' })
-        }
-        debug('Replaying raw actisense: %s', actisense)
-        app.emit('nmea2000out', actisense)
-        res.json({ ok: true })
-      })
+      if (options.enableDebugRoutes) {
+        // Diagnostic: replay a raw actisense string to test NGT-1 fast-packet sending
+        router.post('/debug/replay', (req: any, res: any) => {
+          const actisense = req.body?.actisense
+          if (typeof actisense !== 'string') {
+            return res.status(400).json({ error: 'actisense string required' })
+          }
+          debug('Replaying raw actisense: %s', actisense)
+          app.emit('nmea2000out', actisense)
+          res.json({ ok: true })
+        })
 
-      // Diagnostic: send a property command as raw actisense (bypasses canboatjs toPgn).
-      // Uses prio=7 (matching real keypad) and constructs bytes directly.
-      // Test with: curl -X POST http://localhost:3000/plugins/signalk-garmin-keypad/debug/raw-property \
-      //   -H 'Content-Type: application/json' -d '{"property":"gnx_selected_disp","value":1}'
-      router.post('/debug/raw-property', (req: any, res: any) => {
-        const property = req.body?.property
-        const value = req.body?.value
-        if (typeof property !== 'string' || typeof value !== 'number') {
-          return res.status(400).json({ error: 'property (string) and value (number) required' })
-        }
-        const actisense = buildRawPropertyActisense(property, value, src())
-        debug('Sending raw property actisense: %s', actisense)
-        emitRawActisense(actisense)
-        res.json({ ok: true, actisense })
-      })
+        // Diagnostic: send a property command as raw actisense (bypasses canboatjs toPgn).
+        // Uses prio=7 (matching real keypad) and constructs bytes directly.
+        // Test with: curl -X POST http://localhost:3000/plugins/signalk-garmin-keypad/debug/raw-property \
+        //   -H 'Content-Type: application/json' -d '{"property":"gnx_selected_disp","value":1}'
+        router.post('/debug/raw-property', (req: any, res: any) => {
+          const property = req.body?.property
+          const value = req.body?.value
+          if (typeof property !== 'string' || typeof value !== 'number') {
+            return res.status(400).json({ error: 'property (string) and value (number) required' })
+          }
+          const actisense = buildRawPropertyActisense(property, value, src())
+          debug('Sending raw property actisense: %s', actisense)
+          emitRawActisense(actisense)
+          res.json({ ok: true, actisense })
+        })
 
-      // Diagnostic: send a PGN 126720 via raw actisense (bypasses toPgn, preserves prio)
-      router.post('/debug/raw-pgn', (req: any, res: any) => {
-        const property = req.body?.property
-        const value = req.body?.value
-        if (typeof property !== 'string' || typeof value !== 'number') {
-          return res.status(400).json({ error: 'property (string) and value (number) required' })
-        }
-        // Build PGN object normally, then encode as raw actisense
-        let builder: (v: number, s: number) => PgnMessage
-        switch (property) {
-          case 'gnx_selected_disp': builder = buildDisplaySelect; break
-          case 'gnx_sleep_mode_id': builder = (v, s) => buildSleepWake(v === 0, s); break
-          case 'gnx_intensity_state_id': builder = buildIntensity; break
-          default:
-            return res.status(400).json({ error: 'unknown property' })
-        }
-        const pgn = builder(value, src())
-        const actisense = encodePgnAsActisense(pgn)
-        debug('Sending raw PGN actisense: %s', actisense)
-        emitRawActisense(actisense)
-        res.json({ ok: true, actisense })
-      })
+        // Diagnostic: send a PGN 126720 via raw actisense (bypasses toPgn, preserves prio)
+        router.post('/debug/raw-pgn', (req: any, res: any) => {
+          const property = req.body?.property
+          const value = req.body?.value
+          if (typeof property !== 'string' || typeof value !== 'number') {
+            return res.status(400).json({ error: 'property (string) and value (number) required' })
+          }
+          // Build PGN object normally, then encode as raw actisense
+          let builder: (v: number, s: number) => PgnMessage
+          switch (property) {
+            case 'gnx_selected_disp': builder = buildDisplaySelect; break
+            case 'gnx_sleep_mode_id': builder = (v, s) => buildSleepWake(v === 0, s); break
+            case 'gnx_intensity_state_id': builder = buildIntensity; break
+            default:
+              return res.status(400).json({ error: 'unknown property' })
+          }
+          const pgn = builder(value, src())
+          const actisense = encodePgnAsActisense(pgn)
+          debug('Sending raw PGN actisense: %s', actisense)
+          emitRawActisense(actisense)
+          res.json({ ok: true, actisense })
+        })
+      }
     }
   }
 
