@@ -1,7 +1,6 @@
 const API_BASE = '/plugins/signalk-garmin-keypad'
 
 export interface KeypadState {
-  backlight: number
   sleeping: boolean
   n2kReady: boolean
   displayCount: number
@@ -61,6 +60,3 @@ export async function power(action: 'sleep' | 'wake'): Promise<void> {
   await post('/power', { action })
 }
 
-export async function setBacklight(level: number): Promise<void> {
-  await post('/backlight', { level })
-}

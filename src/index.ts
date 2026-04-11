@@ -4,12 +4,8 @@ import {
   PGN_SINGLE,
   DEFAULT_SRC,
   DEFAULT_GROUP_ID_HEX,
-  INTENSITY_100,
-  INTENSITY_50,
-  INTENSITY_0,
   PROP_DISP_CNT,
   PROP_DISPLAY,
-  PROP_INTENSITY,
   PROP_SLEEP,
   parseGroupId
 } from './protocol'
@@ -18,7 +14,6 @@ import {
   buildSavePreset,
   buildPageNav,
   buildSleepWake,
-  buildIntensity,
   buildDisplaySelect,
   buildHeartbeat,
   buildDeviceIdent,
@@ -46,7 +41,6 @@ interface PluginOptions {
 }
 
 interface PluginState {
-  backlight: number
   sleeping: boolean
   n2kReady: boolean
   displayCount: number
@@ -58,7 +52,6 @@ export default function (app: any) {
   const debug = (...args: any[]) => app.debug(...args)
 
   let options: PluginOptions = { sourceAddress: DEFAULT_SRC }
-  let backlightLevel = INTENSITY_100
   let sleeping = false
   let n2kReady = false
   let displayCount = 0
@@ -173,7 +166,6 @@ export default function (app: any) {
         sourceAddress: props.sourceAddress ?? DEFAULT_SRC,
         enableDebugRoutes: !!props.enableDebugRoutes
       }
-      backlightLevel = INTENSITY_100
       sleeping = false
       n2kReady = false
       displayCount = 0
@@ -245,7 +237,7 @@ export default function (app: any) {
       rawSendListener = rawSendHandler
 
       // Listen for raw incoming actisense data BEFORE canboatjs parses (and truncates) it.
-      // This lets us read the full trailing bytes (fingerprint + counter) from intensity
+      // This lets us read the full trailing bytes (fingerprint + counter) from
       // NACKs that exceed the PGN definition's BitLength of 344 (43 bytes).
       const rawInputHandler = (msg: any) => {
         if (typeof msg !== 'string') return
@@ -460,7 +452,6 @@ export default function (app: any) {
               debug('Sending property probes to discover stored counters')
               emit(buildSleepWake(false, src()))
               emit(buildDisplaySelect(0, src()))
-              emit(buildIntensity(0, src()))
             }, 500)
             handshakeTimers.push(t3)
 
@@ -551,7 +542,6 @@ export default function (app: any) {
 
       router.get('/state', (_req: any, res: any) => {
         const state: PluginState = {
-          backlight: backlightLevel,
           sleeping,
           n2kReady,
           displayCount: effectiveDisplayCount(),
@@ -636,16 +626,6 @@ export default function (app: any) {
         res.json({ ok: true })
       })
 
-      router.post('/backlight', (req: any, res: any) => {
-        const level = req.body?.level
-        if (typeof level !== 'number' || !Number.isInteger(level) || level < 0 || level > 2) {
-          return res.status(400).json({ error: 'level must be 0, 1, or 2' })
-        }
-        emit(buildIntensity(level, src()))
-        backlightLevel = level
-        res.json({ ok: true })
-      })
-
       if (options.enableDebugRoutes) {
         // Diagnostic: replay a raw actisense string to test NGT-1 fast-packet sending
         router.post('/debug/replay', (req: any, res: any) => {
@@ -686,7 +666,6 @@ export default function (app: any) {
           switch (property) {
             case 'gnx_selected_disp': builder = buildDisplaySelect; break
             case 'gnx_sleep_mode_id': builder = (v, s) => buildSleepWake(v === 0, s); break
-            case 'gnx_intensity_state_id': builder = buildIntensity; break
             default:
               return res.status(400).json({ error: 'unknown property' })
           }

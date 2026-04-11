@@ -26,18 +26,12 @@ export const UNK2 = 0x02
 
 // PGN 126720 property names
 export const PROP_SLEEP = 'gnx_sleep_mode_id'
-export const PROP_INTENSITY = 'gnx_intensity_state_id'
 export const PROP_DISPLAY = 'gnx_selected_disp'
 export const PROP_DISP_CNT = 'gnx_disp_cnt'
 
 // Sleep/wake values
 export const SLEEP = 0
 export const WAKE = 1
-
-// Backlight intensity values
-export const INTENSITY_100 = 0
-export const INTENSITY_50 = 1
-export const INTENSITY_0 = 2
 
 // N2K defaults
 export const DEFAULT_SRC = 0

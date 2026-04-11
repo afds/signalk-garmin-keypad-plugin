@@ -140,7 +140,7 @@
   box-shadow: 0 0 12px rgba(255, 193, 7, 0.3);
 }
 
-/* Control rows (display selector, page nav, backlight) */
+/* Control rows (display selector, page nav) */
 .control-row {
   display: flex;
   align-items: center;
@@ -167,28 +167,6 @@
   align-items: center;
   justify-content: center;
   color: #666;
-}
-
-/* Backlight buttons */
-.backlight-row {
-  gap: 6px;
-  margin-top: 32px;
-}
-
-.backlight-btn {
-  flex: 1;
-  height: 34px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-}
-
-.backlight-btn.active {
-  background: #1a3a5c;
-  border-color: #2962ff;
-  color: #82b1ff;
 }
 
 /* Display index indicator */

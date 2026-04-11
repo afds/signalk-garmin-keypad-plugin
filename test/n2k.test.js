@@ -4,7 +4,6 @@ const {
   buildSavePreset,
   buildPageNav,
   buildSleepWake,
-  buildIntensity,
   buildDisplaySelect,
   buildHeartbeat,
   buildDeviceIdent,
@@ -113,35 +112,6 @@ describe('PGN 126720 property command builders', () => {
       const prop = 'gnx_sleep_mode_id'
       const valueOffset = 13 + 1 + prop.length + 1 + 3
       expect(payload[valueOffset]).to.equal(0x01)
-    })
-  })
-
-  describe('buildIntensity', () => {
-    it('payload contains gnx_intensity_state_id property name', () => {
-      const pgn = buildIntensity(0)
-      const payload = pgn['Payload']
-      const prop = 'gnx_intensity_state_id'
-      const str = payload.toString('ascii', 14, 14 + prop.length)
-      expect(str).to.equal(prop)
-    })
-
-    it('sets correct intensity values', () => {
-      const prop = 'gnx_intensity_state_id'
-      const valueOffset = 13 + 1 + prop.length + 1 + 3
-
-      expect(buildIntensity(0)['Payload'][valueOffset]).to.equal(0x00)
-      expect(buildIntensity(1)['Payload'][valueOffset]).to.equal(0x01)
-      expect(buildIntensity(2)['Payload'][valueOffset]).to.equal(0x02)
-    })
-
-    it('throws for invalid level', () => {
-      expect(() => buildIntensity(3)).to.throw()
-      expect(() => buildIntensity(-1)).to.throw()
-    })
-
-    it('throws for non-integer level', () => {
-      expect(() => buildIntensity(1.5)).to.throw()
-      expect(() => buildIntensity(NaN)).to.throw()
     })
   })
 

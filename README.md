@@ -8,7 +8,6 @@ Signal K server plugin that acts as a Garmin GNX Keypad on NMEA 2000, allowing c
 - **Page navigation** — up/down on the active display
 - **Display selection** — switch between configured GNX displays
 - **Power control** — sleep/wake
-- **Backlight control** — 100% / 50% / 0%
 - **Embeddable webapp** — dark-themed UI matching the physical keypad, embedded in the Signal K admin UI via Module Federation
 
 ## Protocol
@@ -16,7 +15,7 @@ Signal K server plugin that acts as a Garmin GNX Keypad on NMEA 2000, allowing c
 Sends Garmin proprietary NMEA 2000 messages:
 
 - **PGN 61184** — single-frame button events (preset select/save, page navigation)
-- **PGN 126720** — fast-packet property commands (display selection, sleep/wake, backlight intensity, heartbeat)
+- **PGN 126720** — fast-packet property commands (display selection, sleep/wake, heartbeat)
 
 Based on reverse-engineered protocol documented in `canboatjs/GARMIN_GNX_KEYPAD.md`.
 
@@ -39,7 +38,6 @@ All endpoints at `/plugins/signalk-garmin-keypad/`:
 | POST | `/page` | `{ "direction": "next" \| "previous" }` |
 | POST | `/display/select` | `{ "index": number }` |
 | POST | `/power` | `{ "action": "sleep" \| "wake" }` |
-| POST | `/backlight` | `{ "level": 0 \| 1 \| 2 }` |
 
 ## Development
 

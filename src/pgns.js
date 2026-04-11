@@ -1,7 +1,7 @@
 // Garmin GNX Keypad PGN definitions for canboatjs v3
 //
 // PGN 61184  — Button events (select/save preset, page nav)
-// PGN 126720 — Property commands (display, sleep, intensity) and heartbeat
+// PGN 126720 — Property commands (display, sleep) and heartbeat
 //
 // Field types use LOOKUP+MANUFACTURER_CODE (not MANUFACTURER) for toPgn encoding.
 
@@ -619,7 +619,7 @@ module.exports = {
     },
 
     // =========================================================
-    // PGN 126720 — Property Command (display, sleep, intensity)
+    // PGN 126720 — Property Command (display, sleep)
     // Byte 2 = 0xe5 distinguishes from heartbeat and race timer
     // =========================================================
     {

@@ -15,7 +15,6 @@ import {
   DEFAULT_PRIO,
   GARMIN_HEADER,
   PROP_SLEEP,
-  PROP_INTENSITY,
   PROP_DISPLAY,
   SLEEP,
   WAKE,
@@ -180,13 +179,6 @@ function buildPropertyPgn(property: string, value: number, src: number): PgnMess
 
 export function buildSleepWake(sleep: boolean, src: number = DEFAULT_SRC): PgnMessage {
   return buildPropertyPgn(PROP_SLEEP, sleep ? SLEEP : WAKE, src)
-}
-
-export function buildIntensity(level: number, src: number = DEFAULT_SRC): PgnMessage {
-  if (!Number.isInteger(level) || level < 0 || level > 2) {
-    throw new Error(`Intensity level must be 0-2, got ${level}`)
-  }
-  return buildPropertyPgn(PROP_INTENSITY, level, src)
 }
 
 export function buildDisplaySelect(index: number, src: number = DEFAULT_SRC): PgnMessage {

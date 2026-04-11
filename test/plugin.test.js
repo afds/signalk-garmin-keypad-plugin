@@ -112,7 +112,6 @@ describe('REST API endpoints', () => {
     it('returns current state', () => {
       const res = createMockRes()
       router._routes.get['/state']({}, res)
-      expect(res.body.backlight).to.equal(0)
       expect(res.body.sleeping).to.equal(false)
     })
   })
@@ -221,31 +220,6 @@ describe('REST API endpoints', () => {
     })
   })
 
-  describe('POST /backlight', () => {
-    it('emits backlight intensity command via PGN 126720', () => {
-      const res = createMockRes()
-      router._routes.post['/backlight'](createMockReq('POST', { level: 1 }), res)
-      expect(res.body).to.deep.equal({ ok: true })
-      expect(app.emitted).to.have.length(1)
-      expect(app.emitted[0].pgn).to.equal(126720)
-    })
-
-    it('updates backlight state', () => {
-      const res = createMockRes()
-      router._routes.post['/backlight'](createMockReq('POST', { level: 2 }), res)
-
-      const stateRes = createMockRes()
-      router._routes.get['/state']({}, stateRes)
-      expect(stateRes.body.backlight).to.equal(2)
-    })
-
-    it('returns 400 for invalid level', () => {
-      const res = createMockRes()
-      router._routes.post['/backlight'](createMockReq('POST', { level: 5 }), res)
-      expect(res.statusCode).to.equal(400)
-    })
-  })
-
   describe('GET /state (extended fields)', () => {
     it('includes displayCount, activeDisplay, and handshakeComplete', () => {
       const stateRes = createMockRes()
@@ -324,11 +298,6 @@ describe('REST API endpoints', () => {
       expect(res.statusCode).to.equal(400)
     })
 
-    it('/backlight rejects non-integer level', () => {
-      const res = createMockRes()
-      router._routes.post['/backlight'](createMockReq('POST', { level: 1.5 }), res)
-      expect(res.statusCode).to.equal(400)
-    })
   })
 })
 

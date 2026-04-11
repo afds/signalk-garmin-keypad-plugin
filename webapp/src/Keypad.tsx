@@ -6,7 +6,6 @@ import {
   pageNavigate,
   cycleDisplay,
   power,
-  setBacklight,
   KeypadState
 } from './api'
 import './Keypad.css'
@@ -95,49 +94,6 @@ function PresetButton({ index, onSelect, onSave }: {
   )
 }
 
-function BacklightControl({ onSet }: {
-  onSet: (level: number) => void
-}) {
-  const levels = [
-    { value: 0, label: '100%' },
-    { value: 1, label: '50%' },
-    { value: 2, label: '0%' }
-  ]
-
-  return (
-    <div className="control-row backlight-row">
-      {levels.map(l => (
-        <button
-          key={l.value}
-          className="keypad-btn backlight-btn"
-          onClick={() => onSet(l.value)}
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" style={{ marginRight: 4 }}>
-            <circle cx="12" cy="12" r="4" fill="currentColor" />
-            {l.value < 2 && (
-              <>
-                <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="2" />
-                <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="2" />
-                <line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" strokeWidth="2" />
-                <line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="2" />
-              </>
-            )}
-            {l.value === 0 && (
-              <>
-                <line x1="4.9" y1="4.9" x2="7.1" y2="7.1" stroke="currentColor" strokeWidth="2" />
-                <line x1="16.9" y1="16.9" x2="19.1" y2="19.1" stroke="currentColor" strokeWidth="2" />
-                <line x1="19.1" y1="4.9" x2="16.9" y2="7.1" stroke="currentColor" strokeWidth="2" />
-                <line x1="7.1" y1="16.9" x2="4.9" y2="19.1" stroke="currentColor" strokeWidth="2" />
-              </>
-            )}
-          </svg>
-          {l.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 export function Keypad() {
   const [state, setState] = useState<KeypadState | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -212,15 +168,6 @@ export function Keypad() {
       await power(action)
       setState(prev => prev ? { ...prev, sleeping: action === 'sleep' } : prev)
       showFeedback(action === 'sleep' ? 'Sleep' : 'Wake')
-    } catch (err) {
-      handleError(err)
-    }
-  }
-
-  const handleBacklight = async (level: number) => {
-    try {
-      await setBacklight(level)
-      showFeedback(['100%', '50%', '0%'][level])
     } catch (err) {
       handleError(err)
     }
@@ -320,10 +267,6 @@ export function Keypad() {
           </button>
         </div>
 
-        {/* Backlight control */}
-        <BacklightControl
-          onSet={handleBacklight}
-        />
       </div>
     </div>
   )
