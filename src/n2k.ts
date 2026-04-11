@@ -249,8 +249,9 @@ export function buildDeviceHandshake(src: number = DEFAULT_SRC, dst: number = DE
 // --- ISO Request (PGN 59904) ---
 // Sends a standard NMEA 2000 ISO Request to trigger mutual discovery.
 // The real keypad requests PGN 60928 (Address Claim) from each display
-// during startup, which triggers displays to request PGN 126996
-// (Product Info) from the keypad and validate its Product Code.
+// during startup. Displays do NOT validate Product Code from PGN 126996 —
+// tested with a generic ESP32 gateway (non-Garmin identity) and handshake
+// completes successfully.
 
 export function buildIsoRequest(requestedPgn: number, src: number = DEFAULT_SRC, dst: number = DEFAULT_DST): PgnMessage {
   return {

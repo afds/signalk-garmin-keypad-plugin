@@ -377,8 +377,8 @@ export default function (app: any) {
         if (mfr !== 229 && mfr !== 'Garmin') return
         const cmd = fields?.['Command']
         if (cmd !== 0x0a) return
-        // Accept handshakes to any destination — the ESP32 claims address 75
-        // on the CAN bus, but the plugin uses src=0 for the JSON pipeline.
+        // Accept handshakes to any destination — the CAN gateway claims its
+        // own address (e.g. 75) on the bus. No Garmin-specific firmware needed.
         // Don't filter by dst; just ensure it's from a known display.
         if (!displayAddresses.has(msg.src) && msg.dst === 255) return
         // Respond once per display address to avoid flooding
@@ -408,9 +408,8 @@ export default function (app: any) {
         }
 
         // ISO Request: ask each display for PGN 60928 (Address Claim).
-        // In the real keypad capture, this triggers displays to request
-        // PGN 126996 (Product Info) from the keypad. After validating the
-        // Product Code, displays send 0x0a to register the keypad.
+        // Displays respond with their address claim and then 0xf5 identification.
+        // No Garmin-specific Product Code needed — generic gateways work.
         const t0 = setTimeout(() => {
           if (displayAddresses.size > 0) {
             debug('Sending ISO Request (PGN 60928) to %d displays: %s',
@@ -425,9 +424,8 @@ export default function (app: any) {
         }, 2000)
         handshakeTimers.push(t0)
 
-        // Startup handshake after delay for group ID discovery,
-        // display heartbeat exchange, and ISO Request/Response (~4s
-        // gives displays time to validate our PGN 126996 Product Info)
+        // Startup handshake after delay for group ID discovery
+        // and display heartbeat exchange (~4s matches real keypad timing)
         const t1 = setTimeout(() => {
           if (displayAddresses.size > 0) {
             debug('Sending device identification (cmd 0xf5) to %d displays: %s',
