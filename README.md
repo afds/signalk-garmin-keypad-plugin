@@ -58,6 +58,10 @@ cd webapp && npm install && npm run build  # build React webapp
 npm test               # run tests
 ```
 
+## Disclaimer
+
+This project is an independent demo and is not affiliated with, endorsed by, or connected to Garmin or its subsidiaries. "Garmin" and "GNX" are trademarks of Garmin Use at your own risk. The authors assume no liability for any damage to equipment or loss of functionality resulting from the use of this software.
+
 ## License
 
 Apache-2.0

@@ -1,10 +1,10 @@
 {
   "name": "signalk-garmin-keypad",
   "version": "1.0.0",
-  "description": "Signal K plugin for Garmin GNX Keypad control on NMEA 2000",
+  "description": "Signal K plugin for GNX Keypad control on NMEA 2000",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && cd webapp && npm run build",
+    "build": "tsc && npm run build:webapp",
     "build:plugin": "tsc",
     "build:webapp": "cd webapp && npm run build",
     "watch": "tsc -w",
@@ -15,6 +15,9 @@
     "signalk-category-nmea-2000",
     "signalk-embeddable-webapp"
   ],
+  "signalk": {
+    "displayName": "GNX Keypad"
+  },
   "license": "Apache-2.0",
   "dependencies": {
     "@signalk/server-api": "^1.39.0"
@@ -23,7 +26,7 @@
     "@canboat/canboatjs": "^3.3.0",
     "@types/node": "^14.14.10",
     "chai": "^4.1.2",
-    "mocha": "^5.0.0",
+    "mocha": "^11.7.5",
     "typescript": "^4.1.2"
   }
 }
