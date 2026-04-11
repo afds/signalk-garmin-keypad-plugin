@@ -124,9 +124,9 @@ export function ensureCounterAbove(property: string, minSeq: number): void {
 // Keypad fingerprint bytes — must match the fingerprint stored on the GNX
 // displays for the property being set.  Displays persist the fingerprint of
 // the last keypad that successfully changed each property and reject commands
-// from a different fingerprint.  Default is a real GNX Keypad's fingerprint
-// extracted from captured bus traffic.
-let keypadFingerprint: [number, number] = [0xf9, 0xa9]
+// from a different fingerprint.  Auto-discovered from bus traffic or set
+// manually via config.
+let keypadFingerprint: [number, number] | null = null
 
 export function setFingerprint(fp: [number, number]): void {
   keypadFingerprint = fp
@@ -140,8 +140,8 @@ function buildTrailing(property: string): Buffer {
   buf[0] = 0x2e
   buf[1] = 0x80 | (Math.random() * 128 | 0)  // T1: random nonce, bit 7 must be set or displays reject
   buf[2] = 0xb0         // T2: 1-bit state flag — 0xb0 is safe constant
-  buf[3] = keypadFingerprint[0]  // T3: keypad fingerprint byte 1
-  buf[4] = keypadFingerprint[1]  // T4: keypad fingerprint byte 2
+  buf[3] = keypadFingerprint?.[0] ?? 0  // T3: keypad fingerprint byte 1
+  buf[4] = keypadFingerprint?.[1] ?? 0  // T4: keypad fingerprint byte 2
   buf[5] = 0x8e + (seq & 7) * 0x10  // T5: counter low bits
   buf[6] = (seq >> 3) & 0x7f         // T6: counter high bits (must be 0x00-0x7f)
   return buf
