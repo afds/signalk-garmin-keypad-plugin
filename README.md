@@ -2,6 +2,8 @@
 
 Signal K server plugin that acts as a Garmin GNX Keypad on NMEA 2000, allowing control of GNX instrument displays from a web browser.
 
+![Webapp demo](resources/demo.png)
+
 ## Features
 
 - **Preset selection** (1-4) — short press to recall, long press to save
@@ -60,7 +62,7 @@ npm test               # run tests
 
 ## Disclaimer
 
-This project is an independent demo and is not affiliated with, endorsed by, or connected to Garmin or its subsidiaries. "Garmin" and "GNX" are trademarks of Garmin Use at your own risk. The authors assume no liability for any damage to equipment or loss of functionality resulting from the use of this software.
+This project is an independent demo and is not affiliated with, endorsed by, or connected to Garmin or its subsidiaries. "Garmin" and "GNX" are trademarks of Garmin. Use at your own risk. The authors assume no liability for any damage to equipment or loss of functionality resulting from the use of this software.
 
 ## License
 
