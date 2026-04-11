@@ -1,30 +1,18 @@
-import {
-  PLUGIN_ID,
-  PGN_FAST,
-  PGN_SINGLE,
-  DEFAULT_SRC,
-  PROP_DISP_CNT,
-  PROP_DISPLAY,
-  parseGroupId
-} from './protocol'
+import { PLUGIN_ID, PGN_FAST, DEFAULT_SRC, PROP_DISP_CNT, PROP_DISPLAY, PROP_SLEEP, parseGroupId } from "./protocol";
 import {
   buildSelectPreset,
   buildSavePreset,
   buildPageNav,
   buildSleepWake,
   buildDisplaySelect,
-  buildHeartbeat,
-  buildDeviceIdent,
-  buildDeviceHandshake,
-  buildIsoRequest,
   setGroupId,
   setFingerprint,
   extractGroupIdFromPayload,
   decodeCounter,
   ensureCounterAbove,
   resetCounters,
-  PgnMessage
-} from './n2k'
+  PgnMessage,
+} from "./n2k";
 
 const pgnDefinitions = require('./pgns')
 
@@ -36,56 +24,65 @@ interface PluginOptions {
 }
 
 interface PluginState {
-  sleeping: boolean
-  n2kReady: boolean
-  displayCount: number
-  activeDisplay: number
-  handshakeComplete: boolean
+  sleeping: boolean;
+  displayCount: number;
+  activeDisplay: number;
+  handshakeComplete: boolean;
 }
 
 export default function (app: any) {
   const debug = (...args: any[]) => app.debug(...args)
 
   let options: PluginOptions = { sourceAddress: DEFAULT_SRC }
-  let sleeping = false
-  let n2kReady = false
+  let sleeping = false;
   let displayCount = 0
   let activeDisplay = 0
   let handshakeComplete = false;
-  let heartbeatInterval: ReturnType<typeof setInterval> | null = null
   let n2kDiscoveryListener: ((msg: any) => void) | null = null
   let propertyListener: ((msg: any) => void) | null = null
   let rawInputListener: ((msg: any) => void) | null = null;
-  let handshakeTimers: ReturnType<typeof setTimeout>[] = []
-  const displayAddresses = new Set<number>()
-  const handshakeRespondedTo = new Set<number>()
+  let retryTimers: ReturnType<typeof setTimeout>[] = [];
+  const displayAddresses = new Set<number>();
+  const syncedProperties = new Set<string>();
 
   function src(): number {
-    return options.sourceAddress ?? DEFAULT_SRC
+    return options.sourceAddress ?? DEFAULT_SRC;
   }
 
   function effectiveDisplayCount(): number {
-    return displayCount > 0 ? displayCount : displayAddresses.size
+    return displayCount > 0 ? displayCount : displayAddresses.size;
   }
 
   function parsePayload(raw: any): Buffer | null {
-    if (!raw) return null
-    if (Buffer.isBuffer(raw)) return raw
-    if (typeof raw === 'string' && raw.includes(' ')) {
-      return Buffer.from(raw.split(' ').map(b => parseInt(b, 16)))
+    if (!raw) return null;
+    if (Buffer.isBuffer(raw)) return raw;
+    if (typeof raw === "string" && raw.includes(" ")) {
+      return Buffer.from(raw.split(" ").map((b) => parseInt(b, 16)));
     }
-    if (typeof raw === 'string') {
-      return Buffer.from(raw, 'hex')
+    if (typeof raw === "string") {
+      return Buffer.from(raw, "hex");
     }
-    return null
+    return null;
   }
 
   function emit(pgn: PgnMessage): void {
-    if (!n2kReady) {
-      debug('N2K output not yet available')
+    debug("Sending PGN %d: %j", pgn.pgn, pgn);
+    app.emit("nmea2000JsonOut", pgn);
+  }
+
+  // Send a property command with lazy discovery retry.
+  // On first use of each property, the display will NACK with stored
+  // counter/fingerprint. rawInputHandler syncs from the NACK, then
+  // the retry (250ms later) sends with corrected values.
+  function emitWithRetry(buildFn: () => PgnMessage, property: string): void {
+    emit(buildFn());
+    if (!syncedProperties.has(property)) {
+      const timer = setTimeout(() => {
+        debug("Retry %s after discovery sync", property);
+        emit(buildFn());
+      }, 250);
+      retryTimers.push(timer);
     }
-    debug('Sending PGN %d: %j', pgn.pgn, pgn)
-    app.emit('nmea2000JsonOut', pgn)
   }
 
   const plugin = {
@@ -137,13 +134,12 @@ export default function (app: any) {
         sourceAddress: props.sourceAddress ?? DEFAULT_SRC,
       };
       sleeping = false;
-      n2kReady = false;
       displayCount = 0;
       activeDisplay = 0;
       handshakeComplete = false;
-      handshakeTimers = [];
+      retryTimers = [];
       displayAddresses.clear();
-      handshakeRespondedTo.clear();
+      syncedProperties.clear();
       resetCounters();
 
       app.emitPropertyValue("canboat-custom-pgns", pgnDefinitions);
@@ -207,6 +203,7 @@ export default function (app: any) {
         const t6 = payload[trailingStart + 6];
         const storedSeq = decodeCounter(t5, t6);
         ensureCounterAbove(propName, storedSeq);
+        syncedProperties.add(propName);
         debug("Raw counter sync: %s src=%d seq=%d", propName, msgSrc, storedSeq);
         if (!fingerprintDiscovered && (t3 !== 0 || t4 !== 0)) {
           fingerprintDiscovered = true;
@@ -279,6 +276,7 @@ export default function (app: any) {
           const storedSeq = decodeCounter(t5, t6);
           debug("Counter discovery: %s src=%d stored=%d t5=0x%s t6=0x%s", propName, msg.src, storedSeq, t5.toString(16), t6.toString(16));
           ensureCounterAbove(propName, storedSeq);
+          syncedProperties.add(propName);
 
           if (!fingerprintDiscovered && (t3 !== 0 || t4 !== 0)) {
             fingerprintDiscovered = true;
@@ -304,12 +302,8 @@ export default function (app: any) {
     },
 
     stop: function () {
-      handshakeTimers.forEach((t) => clearTimeout(t));
-      handshakeTimers = [];
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
-      }
+      retryTimers.forEach((t) => clearTimeout(t));
+      retryTimers = [];
       if (n2kDiscoveryListener) {
         app.removeListener("N2KAnalyzerOut", n2kDiscoveryListener);
         n2kDiscoveryListener = null;
@@ -323,8 +317,7 @@ export default function (app: any) {
         rawInputListener = null;
       }
       displayAddresses.clear();
-      handshakeRespondedTo.clear();
-      n2kReady = false;
+      syncedProperties.clear();
       handshakeComplete = false;
       debug("Plugin stopped");
     },
@@ -355,7 +348,6 @@ export default function (app: any) {
       router.get("/state", (_req: any, res: any) => {
         const state: PluginState = {
           sleeping,
-          n2kReady,
           displayCount: effectiveDisplayCount(),
           activeDisplay,
           handshakeComplete,
@@ -402,7 +394,7 @@ export default function (app: any) {
         } else if (index < 0) {
           target = 0;
         }
-        emit(buildDisplaySelect(target, src()));
+        emitWithRetry(() => buildDisplaySelect(target, src()), PROP_DISPLAY);
         activeDisplay = target;
         res.json({ ok: true, displayIndex: target });
       });
@@ -420,7 +412,7 @@ export default function (app: any) {
         } else {
           next = direction === "down" ? activeDisplay + 1 : Math.max(0, activeDisplay - 1);
         }
-        emit(buildDisplaySelect(next, src()));
+        emitWithRetry(() => buildDisplaySelect(next, src()), PROP_DISPLAY);
         activeDisplay = next;
         res.json({ ok: true, displayIndex: next });
       });
@@ -431,7 +423,7 @@ export default function (app: any) {
           return res.status(400).json({ error: 'action must be "sleep" or "wake"' });
         }
         const goToSleep = action === "sleep";
-        emit(buildSleepWake(goToSleep, src()));
+        emitWithRetry(() => buildSleepWake(goToSleep, src()), PROP_SLEEP);
         sleeping = goToSleep;
         res.json({ ok: true });
       });
