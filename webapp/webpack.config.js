@@ -1,7 +1,7 @@
 const path = require('path')
 const { ModuleFederationPlugin } = require('webpack').container
 
-const packageName = 'signalk-garmin-keypad'
+const packageName = 'signalk-garmin-keypad-plugin'
 const safeName = packageName.replace(/[-@/]/g, '_')
 
 module.exports = {
