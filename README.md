@@ -22,6 +22,8 @@ Sends Garmin proprietary NMEA 2000 messages:
 
 Property commands use a per-property sequence counter and a keypad fingerprint that must match what the displays have stored. On first use, the plugin sends a command that the display rejects (NACK), discovers the correct counter and fingerprint from the rejection, then retries with corrected values.
 
+See [PROTOCOL.md](PROTOCOL.md) for detailed protocol documentation.
+
 ## Prerequisites
 
 - Signal K server with an NMEA 2000 gateway (e.g. Actisense NGT-1, Yacht Devices YDWG-02)
