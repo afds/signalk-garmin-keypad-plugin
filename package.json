@@ -1,5 +1,5 @@
 {
-  "name": "signalk-garmin-keypad",
+  "name": "signalk-garmin-keypad-plugin",
   "version": "1.0.0",
   "description": "Signal K plugin for GNX Keypad control on NMEA 2000",
   "main": "index.js",
