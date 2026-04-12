@@ -18,6 +18,10 @@
   "signalk": {
     "displayName": "GNX Keypad"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/afds/signalk-garmin-keypad-plugin.git"
+  },
   "license": "Apache-2.0",
   "dependencies": {
     "@signalk/server-api": "^1.39.0"
