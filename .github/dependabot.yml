@@ -4,6 +4,16 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+  - package-ecosystem: npm
+    directory: /webapp
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
   - package-ecosystem: github-actions
     directory: /
     schedule:
