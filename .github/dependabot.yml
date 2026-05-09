@@ -1,20 +1,58 @@
 version: 2
 updates:
+  # Root plugin (Node/Signal K runtime + build/test tooling)
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
-      dev-dependencies:
+      dev-minor-patch:
         dependency-type: development
+        update-types:
+          - minor
+          - patch
+      types:
+        patterns:
+          - "@types/*"
+
+  # Embedded admin-UI webapp
   - package-ecosystem: npm
     directory: /webapp
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
-      dev-dependencies:
+      webpack:
+        patterns:
+          - "webpack"
+          - "webpack-*"
+          - "*-loader"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+        update-types:
+          - minor
+          - patch
+      dev-minor-patch:
         dependency-type: development
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - "webpack"
+          - "webpack-*"
+          - "*-loader"
+
+  # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
