@@ -7,13 +7,13 @@
     "dev": "webpack --mode development --watch"
   },
   "dependencies": {
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@signalk/server-admin-ui-dependencies": "*",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "css-loader": "^7.0.0",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.0",
